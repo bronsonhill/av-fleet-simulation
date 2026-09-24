@@ -10,7 +10,11 @@ uv sync
 
 ## run the simulation
 ```
+# in terminal
 uv run main.py
+
+# with visualisation in browser
+uv run solara run main.py 
 ```
 
 

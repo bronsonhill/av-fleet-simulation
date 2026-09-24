@@ -8,9 +8,13 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "altair>=6.3.0",
+    "ipyvue<2",
+    "ipyvuetify<2",
     "mesa>=3.5.1",
     "networkx>=3.7",
     "seaborn>=0.13.2",
+    "solara>=1.62.0",
 ]
 
 [project.scripts]
