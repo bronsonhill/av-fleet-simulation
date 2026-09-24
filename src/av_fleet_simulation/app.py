@@ -3,17 +3,13 @@ from mesa.visualization.components import AgentPortrayalStyle
 
 from src.av_fleet_simulation.model import ModelParameters, MultiFleetTrafficModel
 
-
 SIMULATION_STEPS = 10
 
 
 def run(model):
 
-    i = 0 
+    i = 0
     while i < SIMULATION_STEPS:
-        print(f"--- step {i} --- ")
+        print(f"--- step {i} ---")
         model.step()
         i += 1
-    
-
-
