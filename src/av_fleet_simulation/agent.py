@@ -40,6 +40,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         self.alpha = params.alpha
         self.type = params.type
         self.position = params.position
+        self.length = VehicleParameters.LENGTH
 
         self.a_state: AState = AState.UNINITIALISED
         self.a: float = 0
@@ -54,3 +55,9 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
     def update_a_state(self) -> None:
         """updates the vehicles acceleration state"""
         print("update_a_state")
+
+    def occupied_interval(self):
+        """Return the longitudinal range occupied by this vehicle."""
+        start = self.position[0] - self.length
+        end = self.position[0]
+        return start, end

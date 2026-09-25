@@ -3,7 +3,7 @@ from mesa.visualization.components import AgentPortrayalStyle
 
 from src.av_fleet_simulation.model import ModelParameters, MultiFleetTrafficModel
 
-SIMULATION_STEPS = 10
+SIMULATION_STEPS = 1
 
 
 def run(model):
