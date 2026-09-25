@@ -7,8 +7,10 @@ from src.av_fleet_simulation.agent import VehicleAgent, VehicleParameters, Vehic
 
 
 class ModelParameters:
-    def __init__(self, hdv_count, lanes, road_length, torus):
+    def __init__(self, hdv_count, av1_count, av2_count, lanes, road_length, torus):
         self.hdv_count = hdv_count
+        self.av1_count = av1_count
+        self.av1_count = av2_count
         self.lanes = lanes
         self.road_length = road_length
         self.torus = torus

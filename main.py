@@ -10,7 +10,9 @@ def agent_portrayal(agent):
 
 
 if __name__ == "__main__":
-    params = ModelParameters(hdv_count=5, lanes=2, road_length=200, torus=False)
+    params = ModelParameters(
+        hdv_count=5, av1_count=2, av2_count=2, lanes=2, road_length=200, torus=True
+    )
     model = MultiFleetTrafficModel(params)
 
     renderer = SpaceRenderer(model, backend="matplotlib").render(

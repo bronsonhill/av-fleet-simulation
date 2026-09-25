@@ -22,10 +22,10 @@ class VehicleParameters:
 
     LENGTH = 2
 
-    def __init__(self, alpha: float, v_type: VehicleType, position):
+    def __init__(self, alpha: float, v_type: VehicleType, initial_position):
         self.alpha = alpha
         self.type = v_type
-        self.position = position
+        self.initial_position = initial_position
 
     def to_dict(self) -> dict:
         return self.__dict__
@@ -36,10 +36,10 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
 
     def __init__(self, model: mesa.Model, args) -> None:
         super().__init__(args[0], model)
-        params = args[1]
-        self.alpha = params.alpha
-        self.type = params.type
-        self.position = params.position
+        self.params = args[1]
+        self.alpha = self.params.alpha
+        self.type = self.params.type
+        self.position = self.params.initial_position
         self.length = VehicleParameters.LENGTH
 
         self.a_state: AState = AState.UNINITIALISED
@@ -49,7 +49,10 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
     def move(self) -> None:
         """Updates vehicle position."""
         self.v += self.a
-        self.position[0] += 1
+        self.position[0] = self.position[0] + 1
+        if self.space.torus:
+            self.position[0] %= self.space.x_max
+
         print("accelerating to position " + str(self.position))
 
     def update_a_state(self) -> None:
