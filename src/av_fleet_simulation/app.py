@@ -1,8 +1,3 @@
-from mesa.visualization import SolaraViz, SpaceRenderer
-from mesa.visualization.components import AgentPortrayalStyle
-
-from src.av_fleet_simulation.model import ModelParameters, MultiFleetTrafficModel
-
 SIMULATION_STEPS = 1
 
 

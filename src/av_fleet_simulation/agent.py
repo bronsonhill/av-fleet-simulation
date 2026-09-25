@@ -31,8 +31,6 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
     def __init__(self, model: mesa.Model, args) -> None:
         super().__init__(args[0], model)
         self.params = args[1]
-        self.alpha = self.params.alpha
-        self.type = self.params.fleet_name
         self.position = self.params.initial_position
         self.length = VehicleParameters.LENGTH
 

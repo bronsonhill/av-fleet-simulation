@@ -2,6 +2,7 @@ from typing import override
 
 import mesa
 from mesa.experimental.continuous_space import ContinuousSpace
+from mesa.experimental.scenarios import Scenario
 
 from src.av_fleet_simulation.agent import VehicleAgent, VehicleParameters
 
@@ -13,12 +14,26 @@ class FleetParameters:
         self.name = name
 
 
-class ModelParameters:
-    def __init__(self, fleets: list[FleetParameters], lanes, road_length, torus):
-        self.fleets = fleets
-        self.lanes = lanes
-        self.road_length = road_length
-        self.torus = torus
+class TrafficScenario(Scenario):
+    # Fields are annotated class attributes so Scenario registers them in
+    # _scenario_defaults, which SolaraViz uses to route model_params here.
+    lanes: int = 2
+    road_length: int = 200
+    torus: bool = True
+    hdv_n: int = 5
+    hdv_alpha: float = 1.0
+    av1_n: int = 5
+    av1_alpha: float = 1.0
+    av2_n: int = 5
+    av2_alpha: float = 1.0
+
+    @property
+    def fleets(self) -> list[FleetParameters]:
+        return [
+            FleetParameters(self.hdv_alpha, self.hdv_n, "HDV"),
+            FleetParameters(self.av1_alpha, self.av1_n, "AV1"),
+            FleetParameters(self.av2_alpha, self.av2_n, "AV2"),
+        ]
 
     def to_dict(self):
         return self.__dict__
@@ -27,13 +42,12 @@ class ModelParameters:
 class MultiFleetTrafficModel(mesa.Model):
     """A model of multi-fleet traffic"""
 
-    def __init__(self, params: ModelParameters) -> None:
-        super().__init__()
-        self.params = params
+    def __init__(self, scenario: TrafficScenario) -> None:
+        super().__init__(scenario=scenario)
         self.space = ContinuousSpace(
-            dimensions=[[0, params.road_length], [1, params.lanes]],
+            dimensions=[[0, scenario.road_length], [1, scenario.lanes]],
             random=self.random,
-            torus=params.torus,
+            torus=scenario.torus,
         )
 
         self._validate_model()
@@ -41,7 +55,7 @@ class MultiFleetTrafficModel(mesa.Model):
         self.agents.do("update_a_state")
 
     def _validate_model(self):
-        vehicle_count = sum(map(lambda fleet: fleet.n, self.params.fleets))
+        vehicle_count = sum(map(lambda fleet: fleet.n, self.scenario.fleets))
 
         if (
             vehicle_count * (VehicleParameters.LENGTH + 1)
@@ -53,7 +67,7 @@ class MultiFleetTrafficModel(mesa.Model):
             )
 
     def _init_agents(self) -> None:
-        for fleet_params in self.params.fleets:
+        for fleet_params in self.scenario.fleets:
             self._init_fleet(fleet_params)
 
     def _init_fleet(self, params: FleetParameters):
@@ -98,7 +112,7 @@ class MultiFleetTrafficModel(mesa.Model):
                 VehicleParameters.LENGTH,
             ):
                 print(
-                    f"Randomly assigned position (lane {candidate_lane}, x {candidate_x}) collides with another initialised vehicle - choosing another random initial position"
+                    f"Randomly assigned position lane, x: ({candidate_lane}, {candidate_x}) collides with another initialised vehicle - choosing another random initial position"
                 )
             else:
                 return (candidate_x, candidate_lane)
