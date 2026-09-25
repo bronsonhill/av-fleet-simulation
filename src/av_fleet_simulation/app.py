@@ -1,4 +1,4 @@
-SIMULATION_STEPS = 1
+SIMULATION_STEPS = 2
 
 
 def run(model):

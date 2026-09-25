@@ -18,13 +18,13 @@ class TrafficScenario(Scenario):
     # Fields are annotated class attributes so Scenario registers them in
     # _scenario_defaults, which SolaraViz uses to route model_params here.
     lanes: int = 2
-    road_length: int = 200
+    road_length: int = 100
     torus: bool = True
     hdv_n: int = 5
     hdv_alpha: float = 1.0
     av1_n: int = 5
     av1_alpha: float = 1.0
-    av2_n: int = 5
+    av2_n: int = 0
     av2_alpha: float = 1.0
 
     @property
