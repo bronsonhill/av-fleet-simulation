@@ -3,14 +3,19 @@ from typing import override
 import mesa
 from mesa.experimental.continuous_space import ContinuousSpace
 
-from src.av_fleet_simulation.agent import VehicleAgent, VehicleParameters, VehicleType
+from src.av_fleet_simulation.agent import VehicleAgent, VehicleParameters
+
+
+class FleetParameters:
+    def __init__(self, alpha: float, n: int, name: str):
+        self.alpha = alpha
+        self.n = n
+        self.name = name
 
 
 class ModelParameters:
-    def __init__(self, hdv_count, av1_count, av2_count, lanes, road_length, torus):
-        self.hdv_count = hdv_count
-        self.av1_count = av1_count
-        self.av1_count = av2_count
+    def __init__(self, fleets: list[FleetParameters], lanes, road_length, torus):
+        self.fleets = fleets
         self.lanes = lanes
         self.road_length = road_length
         self.torus = torus
@@ -36,28 +41,30 @@ class MultiFleetTrafficModel(mesa.Model):
         self.agents.do("update_a_state")
 
     def _validate_model(self):
-        vehicle_count = self.params.hdv_count
+        vehicle_count = sum(map(lambda fleet: fleet.n, self.params.fleets))
+
         if (
             vehicle_count * (VehicleParameters.LENGTH + 1)
             > self.space.x_max - self.space.x_min
         ):
             raise ValueError(
-                f"Not enough space for vehicles: {vehicle_count} vehicles do \
-                            not fit in {self.space.dimensions}"
+                f"""Not enough space for vehicles: {vehicle_count} vehicles do
+                            not fit in {self.space.dimensions}"""
             )
 
     def _init_agents(self) -> None:
-        self._init_fleet(1, self.params.hdv_count, VehicleType.HDV)
-        # self._init_fleet(1, self.params.hdv_count, VehicleType.AV1)
-        # self._init_fleet(1, self.params.hdv_count, VehicleType.AV2)
+        for fleet_params in self.params.fleets:
+            self._init_fleet(fleet_params)
 
-    def _init_fleet(self, alpha: float, n: int, v_type: VehicleType):
-        for _ in range(n):
+    def _init_fleet(self, params: FleetParameters):
+        for _ in range(params.n):
             VehicleAgent.create_agents(
                 model=self,
                 args=[
                     self.space,
-                    VehicleParameters(alpha, v_type, self._get_available_position()),
+                    VehicleParameters(
+                        params.alpha, params.name, self._get_available_position()
+                    ),
                 ],
                 n=1,
             )

@@ -11,20 +11,14 @@ class AState(Enum):
     UNINITIALISED = None
 
 
-class VehicleType(Enum):
-    HDV = auto()
-    AV1 = auto()
-    AV2 = auto()
-
-
 class VehicleParameters:
     """Parameters a vehicle requires for initialisation."""
 
     LENGTH = 2
 
-    def __init__(self, alpha: float, v_type: VehicleType, initial_position):
+    def __init__(self, alpha: float, fleet_name: str, initial_position):
         self.alpha = alpha
-        self.type = v_type
+        self.fleet_name = fleet_name
         self.initial_position = initial_position
 
     def to_dict(self) -> dict:
@@ -38,7 +32,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         super().__init__(args[0], model)
         self.params = args[1]
         self.alpha = self.params.alpha
-        self.type = self.params.type
+        self.type = self.params.fleet_name
         self.position = self.params.initial_position
         self.length = VehicleParameters.LENGTH
 
