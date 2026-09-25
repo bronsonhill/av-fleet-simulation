@@ -52,7 +52,6 @@ class MultiFleetTrafficModel(mesa.Model):
 
         self._validate_model()
         self._init_agents()
-        self.agents.do("update_a_state")
 
     def _validate_model(self):
         vehicle_count = sum(map(lambda fleet: fleet.n, self.scenario.fleets))
@@ -120,4 +119,5 @@ class MultiFleetTrafficModel(mesa.Model):
     @override
     def step(self) -> None:
         """Advance the model by one step"""
+        self.agents.do("update_a_state")
         self.agents.do("move")

@@ -46,8 +46,8 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
 
     def move(self) -> None:
         """Updates vehicle position."""
-        self.v += self.a
-        self.position[0] = self.position[0] + 1
+        self.v = min(self.v + self.a, VehicleParameters.V_MAX)
+        self.position[0] += self.v
         if self.space.torus:
             self.position[0] %= self.space.x_max
 
@@ -91,11 +91,12 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         return res
 
     def get_leading_anticipated_v(self, leading: Self) -> float:
-        """Gets the velocity anticpated at the next timestep"""
+        """Gets the velocity anticipated at the next timestep"""
         # There are various ways to calculate v_anti. Knospe et al. introduce a V2V model
         # where the velocity is anticpated based on the leaders leader.
         # below is a simple method that assumes velocity doesn't change.
         # TODO: implement dynamic velocity anticipation based on vehicle types
+        # AVs should use V2V method while HDVs use what is below
         return min(leading.v, VehicleParameters.A_MAX)
 
     def occupied_interval(self):
