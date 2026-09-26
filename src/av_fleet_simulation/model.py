@@ -1,3 +1,4 @@
+from statistics import mean
 from typing import override
 
 import mesa
@@ -39,7 +40,7 @@ class TrafficScenario(Scenario):
         return self.__dict__
 
 
-class MultiFleetTrafficModel(mesa.Model):
+class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
     """A model of multi-fleet traffic"""
 
     def __init__(self, scenario: TrafficScenario) -> None:
@@ -52,9 +53,17 @@ class MultiFleetTrafficModel(mesa.Model):
 
         self._validate_model()
         self._init_agents()
+        self._init_datacollector()
+
+    def _init_datacollector(self):
+        model_reporters = {
+            "mean_v": lambda m: m.collect_mean_v(),
+            "mean_d": lambda m: m.collect_mean_d(),
+        }
+        self.datacollector = mesa.DataCollector(model_reporters=model_reporters)
 
     def _validate_model(self):
-        vehicle_count = sum(map(lambda fleet: fleet.n, self.scenario.fleets))
+        vehicle_count = sum(fleet.n for fleet in self.scenario.fleets)
 
         if (
             vehicle_count * (VehicleParameters.LENGTH + 1)
@@ -121,3 +130,16 @@ class MultiFleetTrafficModel(mesa.Model):
         """Advance the model by one step"""
         self.agents.do("update_a_state")
         self.agents.do("move")
+        self.datacollector.collect(self)
+
+    def collect_mean_d(self):
+        d = []
+        for agent in self.agents:
+            d.append(agent.d_eff)
+        return mean(d)
+
+    def collect_mean_v(self):
+        v = []
+        for agent in self.agents:
+            v.append(agent.v)
+        return mean(v)

@@ -1,4 +1,4 @@
-from mesa.visualization import Slider, SolaraViz, SpaceRenderer
+from mesa.visualization import Slider, SolaraViz, SpaceRenderer, make_plot_component
 from mesa.visualization.components import AgentPortrayalStyle
 
 from src.av_fleet_simulation.app import run
@@ -31,7 +31,12 @@ renderer = SpaceRenderer(model, backend="matplotlib").render(
     agent_portrayal=agent_portrayal,
 )
 
-page = SolaraViz(model, renderer, components=[], model_params=model_params)
+page = SolaraViz(
+    model,
+    renderer,
+    components=[make_plot_component("mean_v"), make_plot_component("mean_d")],
+    model_params=model_params,
+)
 
 
 if __name__ == "__main__":

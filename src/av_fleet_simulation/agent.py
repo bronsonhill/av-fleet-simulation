@@ -10,7 +10,7 @@ class AState(Enum):
 
     NORMAL = auto()
     DEFENSE = auto()
-    UNINITIALISED = None
+    UNINITIALISED = auto()
 
 
 class VehicleParameters:
@@ -48,27 +48,31 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         self.params = args[1]
         self.position = self.params.initial_position
         self.length = VehicleParameters.LENGTH
-
         self.a_state: AState = AState.UNINITIALISED
+
+        # velocity
         self.v: float = 0
+        # effective distance to the leading car on the next timestep
         self.d_eff: float = float("inf")
-        self.t_st: int = 0  # steps spent stopped
+        # distance to the leading car
+        self.d_l: float = float("inf")
+        # time steps spent stopped
+        self.t_st: int = 0
 
     def move(self) -> None:
         """Updates vehicle speed and position (Tian et al. 2015, NHM)."""
-        p, slowdown = self._get_p_and_b()
 
         # determinstic velocity update
         v = min(self.v + VehicleParameters.A_MAX, VehicleParameters.V_MAX, self.d_eff)
 
         # random slowdown
+        p, slowdown = self._get_p_and_b()
         if self.random.random() < p:
             v = max(v - slowdown, 0)
 
         # update stationary timer
         self.t_st = self.t_st + 1 if v == 0 else 0
         self.v = v
-
         self.position[0] += self.v
 
         if self.space.torus:
