@@ -1,4 +1,4 @@
-from statistics import mean
+from statistics import mean, stdev
 from typing import override
 
 import mesa
@@ -56,10 +56,17 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
         self._init_datacollector()
 
     def _init_datacollector(self):
+        lane_cells = self.scenario.road_length * self.scenario.lanes
+
         model_reporters = {
-            "mean_v": lambda m: m.collect_mean_v(),
-            "mean_d": lambda m: m.collect_mean_d(),
-            "stopped_count": lambda m: m.collect_stopped_count(),
+            "flow": lambda m: sum(a.v for a in m.agents) / lane_cells,
+            "mean_v": lambda m: mean(agent.v for agent in (a for a in m.agents)),
+            # "mean_d": lambda m: mean(agent.d for agent in (a for a in m.agents)),
+            "stopped_count": lambda m: sum(
+                agent.v == 0 for agent in (a for a in m.agents)
+            ),
+            "stdev_v": lambda m: stdev(agent.v for agent in (a for a in m.agents)),
+            "density": lambda m: len(m.agents) / lane_cells,
         }
         self.datacollector = mesa.DataCollector(model_reporters=model_reporters)
 
@@ -132,21 +139,3 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
         self.agents.do("update_a_state")
         self.agents.do("move")
         self.datacollector.collect(self)
-
-    def collect_mean_d(self):
-        d = []
-        for agent in self.agents:
-            d.append(agent.d_eff)
-        return mean(d)
-
-    def collect_mean_v(self):
-        v = []
-        for agent in self.agents:
-            v.append(agent.v)
-        return mean(v)
-
-    def collect_stopped_count(self):
-        stopped = 0
-        for agent in self.agents:
-            stopped += int(agent.v == 0)
-        return stopped
