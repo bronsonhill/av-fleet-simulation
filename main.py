@@ -34,7 +34,11 @@ renderer = SpaceRenderer(model, backend="matplotlib").render(
 page = SolaraViz(
     model,
     renderer,
-    components=[make_plot_component("mean_v"), make_plot_component("mean_d")],
+    components=[
+        make_plot_component("mean_v"),
+        make_plot_component("mean_d"),
+        make_plot_component("stopped_count"),
+    ],
     model_params=model_params,
 )
 

@@ -59,6 +59,7 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
         model_reporters = {
             "mean_v": lambda m: m.collect_mean_v(),
             "mean_d": lambda m: m.collect_mean_d(),
+            "stopped_count": lambda m: m.collect_stopped_count(),
         }
         self.datacollector = mesa.DataCollector(model_reporters=model_reporters)
 
@@ -143,3 +144,9 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
         for agent in self.agents:
             v.append(agent.v)
         return mean(v)
+
+    def collect_stopped_count(self):
+        stopped = 0
+        for agent in self.agents:
+            stopped += int(agent.v == 0)
+        return stopped
