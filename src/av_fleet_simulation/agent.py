@@ -14,9 +14,16 @@ class AState(Enum):
 
 
 class VehicleParameters:
-    """Parameters a vehicle requires for initialisation."""
+    """
+    Parameters a vehicle requires for initialisation.
+    Static class variables are constants that are not varied per vehicle or fleet.
+    """
 
-    # Tian et al. (2015), Table 3. One cell = 7.5 m, one step = 1 s.
+    # Real-world scale of the lattice; used to convert output for display.
+    CELL_M = 7.5  # m per cell
+    STEP_S = 1.0  # s per step
+
+    # Tian et al. (2015), Table 3, in cells and steps.
     LENGTH = 1  # cells
     A_MAX = 1  # cells/s^2
     V_MAX = 5  # cells/s (37.5 m/s, 135 km/h)
@@ -62,23 +69,33 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
     def move(self) -> None:
         """Updates vehicle speed and position (Tian et al. 2015, NHM)."""
 
-        # determinstic velocity update
-        v = min(self.v + VehicleParameters.A_MAX, VehicleParameters.V_MAX, self.d_eff)
+        self._deterministic_velocity()
 
-        # random slowdown
-        p, slowdown = self._get_p_and_b()
+        self._random_slowdown()
+
+        # update time stationary
+        self.t_st = self.t_st + 1 if self.v == 0 else 0
+
+        self._position_change()
+
+    def _deterministic_velocity(self):
+        self.v = min(
+            self.v + VehicleParameters.A_MAX, VehicleParameters.V_MAX, self.d_eff
+        )
+
+    def _random_slowdown(self):
+        p, v_slowdown = self._slowdown_probability_and_magnitude()
         if self.random.random() < p:
-            v = max(v - slowdown, 0)
+            self.v = max(self.v - v_slowdown, 0)
+        return 0
 
-        # update stationary timer
-        self.t_st = self.t_st + 1 if v == 0 else 0
-        self.v = v
+    def _position_change(self):
         self.position[0] += self.v
 
         if self.space.torus:
             self.position[0] %= self.space.x_max
 
-    def _get_p_and_b(self) -> tuple[float, float]:
+    def _slowdown_probability_and_magnitude(self) -> tuple[float, float]:
         """Slowdown probability and size for the current state."""
         if self.a_state == AState.DEFENSE:
             return (
@@ -90,9 +107,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         elif self.a_state == AState.NORMAL:
             return VehicleParameters.P_NORMAL, VehicleParameters.A_MAX
         else:
-            raise ValueError(
-                "Acceleration state of vehicle has not been properly initialised"
-            )
+            raise ValueError("Acceleration state of vehicle has not been initialised")
 
     def update_a_state(self) -> None:
         """
@@ -110,12 +125,22 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         """
         The max distance that can be safely travelled on the next time step.
         """
-        leading, d = self._get_leading_vehicle()
+        leading, d = self._get_leader()
         v_anti = self.get_leading_anticipated_v(leading)
 
         return d + max(v_anti - VehicleParameters.G_SAFETY, 0)
 
-    def _get_leading_vehicle(self) -> tuple[Self, float]:
+    def _get_desired_gap(self) -> float:
+        """
+        The desired gap behind the leading car according to Treiber,
+        Hennecke & Helbing (2000)
+        """
+        breaking_term = 0  # TODO: implement breaking term
+        return VehicleParameters.G_SAFETY + max(
+            0, self.v * VehicleParameters.T + breaking_term
+        )
+
+    def _get_leader(self) -> tuple[Self, float]:
         """Gets the vehicle that is leading self in it's lane"""
 
         res: tuple[Self, float] = (self, float("inf"))
@@ -143,7 +168,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         # AVs could use V2V-reported intentions while HDVs use what is below
         if leading is self:
             return 0
-        _, leading_gap = leading._get_leading_vehicle()
+        _, leading_gap = leading._get_leader()
         return min(
             leading_gap,
             leading.v + VehicleParameters.A_MAX,
