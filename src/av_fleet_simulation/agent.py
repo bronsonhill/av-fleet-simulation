@@ -2,7 +2,6 @@ from enum import Enum, auto
 from typing import Self
 
 import mesa
-from mesa.agentset import AgentSet
 
 
 class AState(Enum):
@@ -141,23 +140,11 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         )
 
     def _get_leader(self) -> tuple[Self, float]:
-        """Gets the vehicle that is leading self in it's lane"""
-
-        res: tuple[Self, float] = (self, float("inf"))
-        vehicles: AgentSet[Self] = self.space.agents
-
-        for vehicle in vehicles:
-            # in order to be leading must be in the same lane
-            if vehicle is not self and vehicle.position[1] == self.position[1]:
-                # gap from self's front to the leader's rear
-                dist: float = vehicle.position[0] - vehicle.length - self.position[0]
-
-                if self.model.scenario.torus and dist < 0:
-                    dist += self.space.x_max
-
-                if dist < res[1]:
-                    res = (vehicle, dist)
-        return res
+        """
+        Gets the vehicle that is leading self in its lane and the gap to its
+        rear. Returns (self, inf) when there is no leader.
+        """
+        return self.model.leaders[self]
 
     def get_leading_anticipated_v(self, leading: Self) -> float:
         """
