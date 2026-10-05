@@ -20,23 +20,23 @@ class VehicleParameters:
     """
 
     # Real-world scale of the lattice; used to convert output for display.
-    CELL_M = 7.5  # m per cell
+    CELL_M = 1  # m per cell
     STEP_S = 1.0  # s per step
 
-    # Tian et al. (2015), Table 3, in cells and steps.
-    LENGTH = 1  # cells
+    # Tian et al. (2015), Table 4, in cells and steps.
+    LENGTH = 7  # cells
     A_MAX = 1  # cells/s^2
-    V_MAX = 5  # cells/s (37.5 m/s, 135 km/h)
-    G_SAFETY = 2  # cells; must be >= B_DEFENSE or cars can collide
-    B_DEFENSE = 1  # cells/s^2, extra slowdown when defensive
-    T = 1.8  # s, desired time gap
-    T_STOPPED = 4  # s stopped before slow-to-start applies
+    V_MAX = 33  # cells/s
+    G_SAFETY = 4  # cells; must be >= B_DEFENSE or cars can collide
+    B_DEFENSE = 2  # cells/s^2, extra slowdown when defensive
+    T = 1.5  # s, desired time gap
+    T_STOPPED = 8  # s stopped before slow-to-start applies
     # Probability of slowing down after the speed-up and brake. P_DEFENSIVE = 1, so
-    # the defensive slowdown always applies; the other two are random.
-    # Tian et al. (2015) write these as sums: pc, pa + pc (capped at 1), pb + pc.
-    P_NORMAL = 0.1
-    P_DEFENSIVE = 1.0
-    P_STOPPED = 0.65
+    # in a defensive state the defensive slowdown deterministically applies;
+    # the other two are stochastic. Tian et al. (2015) write these as sums:
+    P_NORMAL = 0.1  # pc
+    P_DEFENSIVE = 1.0  # pa + pc (capped at 1)
+    P_STOPPED = 0.65  # pb + pc
 
     def __init__(self, alpha: float, fleet_name: str, initial_position):
         self.alpha = alpha

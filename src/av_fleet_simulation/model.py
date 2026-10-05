@@ -16,10 +16,8 @@ class FleetParameters:
 
 
 class TrafficScenario(Scenario):
-    # Fields are annotated class attributes so Scenario registers them in
-    # _scenario_defaults, which SolaraViz uses to route model_params here.
     lanes: int = 2
-    road_length: int = 100
+    road_length: int = 1000
     torus: bool = True
     hdv_n: int = 5
     hdv_alpha: float = 1.0
@@ -56,6 +54,7 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
         self._init_datacollector()
 
     def _init_datacollector(self):
+        """Create a `datacollector` and assign it to the model"""
         lane_cells = self.scenario.road_length * self.scenario.lanes
 
         model_reporters = {
@@ -71,6 +70,10 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
         self.datacollector = mesa.DataCollector(model_reporters=model_reporters)
 
     def _validate_model(self):
+        """
+        Ensures the provided `TrafficScenario` is valid by checking if vehicles
+        can fit into the configured road length.
+        """
         vehicle_count = sum(fleet.n for fleet in self.scenario.fleets)
 
         if (

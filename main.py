@@ -15,8 +15,8 @@ def agent_portrayal(agent):
 model_params = {
     "rng": 42,
     "lanes": Slider("Lanes", 2, 1, 4),
-    "road_length": Slider("Road length", 200, 50, 1000, 10),
-    "torus": {"type": "Checkbox", "value": True, "label": "Wrap road"},
+    "road_length": Slider("Road length", 400, 50, 1000, 10),
+    "torus": {"type": "Checkbox", "value": True, "label": "Torus"},
     "hdv_n": Slider("HDV count", 15, 0, 30),
     "hdv_alpha": Slider("HDV alpha", 1.0, 0.0, 2.0, 0.1),
     "av1_n": Slider("AV1 count", 15, 0, 30),
