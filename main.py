@@ -17,11 +17,11 @@ model_params = {
     "lanes": Slider("Lanes", 2, 1, 4),
     "road_length": Slider("Road length", 400, 50, 1000, 10),
     "torus": {"type": "Checkbox", "value": True, "label": "Torus"},
-    "hdv_n": Slider("HDV count", 15, 0, 30),
+    "density": Slider("Density (veh/km/lane)", 20, 5, 80, 1),
+    "av_share": Slider("AV share", 0.5, 0.0, 1.0, 0.05),
+    "av1_share": Slider("AV1 share of AVs", 0.5, 0.0, 1.0, 0.05),
     "hdv_alpha": Slider("HDV alpha", 1.0, 0.0, 2.0, 0.1),
-    "av1_n": Slider("AV1 count", 15, 0, 30),
     "av1_alpha": Slider("AV1 alpha", 1.0, 0.0, 2.0, 0.1),
-    "av2_n": Slider("AV2 count", 15, 0, 30),
     "av2_alpha": Slider("AV2 alpha", 1.0, 0.0, 2.0, 0.1),
 }
 

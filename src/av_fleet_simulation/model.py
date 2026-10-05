@@ -17,21 +17,28 @@ class FleetParameters:
 
 class TrafficScenario(Scenario):
     lanes: int = 2
-    road_length: int = 1000
+    road_length: int = 1000  # cells (m)
     torus: bool = True
-    hdv_n: int = 5
+    density: float = 20  # veh/km/lane
+    av_share: float = 0.5  # (AV1 + AV2) / all vehicles
+    av1_share: float = 0.5  # AV1 / (AV1 + AV2)
     hdv_alpha: float = 1.0
-    av1_n: int = 5
     av1_alpha: float = 1.0
-    av2_n: int = 0
     av2_alpha: float = 1.0
 
     @property
+    def vehicle_n(self) -> int:
+        cells_per_km = 1000 / VehicleParameters.CELL_M
+        return round(self.density * self.lanes * self.road_length / cells_per_km)
+
+    @property
     def fleets(self) -> list[FleetParameters]:
+        av_n = round(self.vehicle_n * self.av_share)
+        av1_n = round(av_n * self.av1_share)
         return [
-            FleetParameters(self.hdv_alpha, self.hdv_n, "HDV"),
-            FleetParameters(self.av1_alpha, self.av1_n, "AV1"),
-            FleetParameters(self.av2_alpha, self.av2_n, "AV2"),
+            FleetParameters(self.hdv_alpha, self.vehicle_n - av_n, "HDV"),
+            FleetParameters(self.av1_alpha, av1_n, "AV1"),
+            FleetParameters(self.av2_alpha, av_n - av1_n, "AV2"),
         ]
 
     def to_dict(self):
@@ -76,11 +83,8 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
         """
         vehicle_count = sum(fleet.n for fleet in self.scenario.fleets)
 
-        if (  # TODO: fix this.
-            vehicle_count * (VehicleParameters.LENGTH + 1)
-            > self.space.x_max
-            - self.space.x_min  # TODO: looks like this isnt accounting for multi-lanes
-        ):
+        lane_cells = (self.space.x_max - self.space.x_min) * self.scenario.lanes
+        if vehicle_count * (VehicleParameters.LENGTH + 1) > lane_cells:
             raise ValueError(
                 f"""Not enough space for vehicles: {vehicle_count} vehicles do
                             not fit in {self.space.dimensions}"""
