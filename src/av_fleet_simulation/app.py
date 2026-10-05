@@ -1,6 +1,6 @@
 from src.av_fleet_simulation.model import MultiFleetTrafficModel
 
-SIMULATION_STEPS = 2
+SIMULATION_STEPS = 1000
 
 
 def run(model: MultiFleetTrafficModel):

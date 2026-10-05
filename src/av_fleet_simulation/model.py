@@ -76,9 +76,10 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
         """
         vehicle_count = sum(fleet.n for fleet in self.scenario.fleets)
 
-        if (
+        if (  # TODO: fix this.
             vehicle_count * (VehicleParameters.LENGTH + 1)
-            > self.space.x_max - self.space.x_min
+            > self.space.x_max
+            - self.space.x_min  # TODO: looks like this isnt accounting for multi-lanes
         ):
             raise ValueError(
                 f"""Not enough space for vehicles: {vehicle_count} vehicles do

@@ -29,7 +29,7 @@ class VehicleParameters:
     V_MAX = 33  # cells/s
     G_SAFETY = 4  # cells; must be >= B_DEFENSE or cars can collide
     B_DEFENSE = 2  # cells/s^2, extra slowdown when defensive
-    T = 1.5  # s, desired time gap
+    T = 1.6  # s, desired time gap
     T_STOPPED = 8  # s stopped before slow-to-start applies
     # Probability of slowing down after the speed-up and brake. P_DEFENSIVE = 1, so
     # in a defensive state the defensive slowdown deterministically applies;
