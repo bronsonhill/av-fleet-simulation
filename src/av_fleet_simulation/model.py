@@ -1,3 +1,4 @@
+from collections import defaultdict
 from statistics import mean, stdev
 from typing import override
 
@@ -55,6 +56,8 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
             random=self.random,
             torus=scenario.torus,
         )
+
+        self.leaders: dict[VehicleAgent, tuple[VehicleAgent, float]] = {}
 
         self._validate_model()
         self._init_agents()
@@ -144,6 +147,34 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
     @override
     def step(self) -> None:
         """Advance the model by one step"""
+        self._update_leaders()
         self.agents.do("update_a_state")
         self.agents.do("move")
         self.datacollector.collect(self)
+
+    def _update_leaders(self) -> None:
+        """
+        Finds each vehicle's leader and the gap to its rear by sorting each lane
+        once.
+        """
+        lanes = defaultdict(list)
+        for agent in self.agents:
+            lanes[agent.position[1]].append(agent)
+
+        torus = self.scenario.torus
+        self.leaders = {}
+        for cars in lanes.values():
+            cars.sort(key=lambda a: a.position[0])
+            for i, car in enumerate(cars):
+                if i + 1 < len(cars):
+                    leader = cars[i + 1]
+                elif torus and len(cars) > 1:
+                    leader = cars[0]
+                else:
+                    self.leaders[car] = (car, float("inf"))
+                    continue
+
+                gap = leader.position[0] - leader.length - car.position[0]
+                if torus and gap < 0:
+                    gap += self.space.x_max
+                self.leaders[car] = (leader, gap)
