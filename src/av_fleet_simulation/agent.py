@@ -22,11 +22,11 @@ class VehicleParameters:
     CELL_M = 1  # m per cell
     STEP_S = 1.0  # s per step
 
-    # Tian et al. (2015), Table 4, in cells and steps.
-    LENGTH = 4  # cells
+    # Tian et al. (2015) Table 4 used as starting point for params.
+    LENGTH = 5  # cells
     A_MAX = 1  # cells/s^2
     V_MAX = 27  # cells/s, mean over vehicles
-    V_MAX_SD = 1  # cells/s, spread of each vehicle's own max speed
+    V_MAX_SD = 2  # cells/s, spread of each vehicle's own max speed
     G_SAFETY = 4  # cells; must be >= B_DEFENSE or cars can collide
     B_DEFENSE = 2  # cells/s^2, extra slowdown when defensive
     T = 1.8  # s, desired time gap

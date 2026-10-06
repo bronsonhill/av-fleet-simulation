@@ -76,6 +76,7 @@ dependencies = [
     { name = "ipyvuetify" },
     { name = "mesa" },
     { name = "networkx" },
+    { name = "scipy" },
     { name = "seaborn" },
     { name = "solara" },
 ]
@@ -92,6 +93,7 @@ requires-dist = [
     { name = "ipyvuetify", specifier = "<2" },
     { name = "mesa", specifier = ">=3.5.1" },
     { name = "networkx", specifier = ">=3.7" },
+    { name = "scipy", specifier = ">=1.18.1" },
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "solara", specifier = ">=1.62.0" },
 ]
