@@ -1,3 +1,4 @@
 *.pyc
 .VSCodeCounter
 /results
+*.DS_Store
