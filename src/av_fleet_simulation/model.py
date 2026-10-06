@@ -20,6 +20,7 @@ class TrafficScenario(Scenario):
     lanes: int = 2
     road_length: int = 1000  # cells (m)
     torus: bool = True
+    placement: str = "random"  # random, even (equal spacing) or jam (bumper to bumper)
     density: float = 20  # veh/km/lane
     av_share: float = 0.5  # (AV1 + AV2) / all vehicles
     av1_share: float = 0.5  # AV1 / (AV1 + AV2)
@@ -92,8 +93,11 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
                 f"""Not enough space for vehicles: {vehicle_count} vehicles do
                             not fit in {self.space.dimensions}"""
             )
+        if self.scenario.placement not in ("random", "even", "jam"):
+            raise ValueError(f"Unknown placement: {self.scenario.placement}")
 
     def _init_agents(self) -> None:
+        self._slots = self._placement_slots()
         for fleet_params in self.scenario.fleets:
             self._init_fleet(fleet_params)
 
@@ -127,8 +131,39 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
 
         return False
 
+    def _placement_slots(self) -> list[tuple[int, int]]:
+        """
+        Fixed initial positions for "even" and "jam" placement, shuffled so the
+        fleets mix. Empty for "random".
+        """
+        placement = self.scenario.placement
+        if placement == "random":
+            return []
+
+        n = sum(fleet.n for fleet in self.scenario.fleets)
+        lanes = self.scenario.lanes
+        length = VehicleParameters.LENGTH
+        slots = []
+        for i, lane in enumerate(range(1, lanes + 1)):
+            lane_n = n // lanes + (i < n % lanes)
+            for j in range(lane_n):
+                if placement == "even":
+                    x = length + int(j * self.scenario.road_length / lane_n)
+                elif placement == "jam":
+                    x = length + j * (length + 1)
+                else:
+                    raise ValueError(f"Invalid placement value: {placement}")
+                slots.append((x, lane))
+        self.random.shuffle(slots)
+        return slots
+
     def _get_available_position(self):
         """Gets a position in continuous space not yet occupied."""
+        if self.scenario.placement != "random":
+            # assumes caller has correct slot count
+            return self._slots.pop()
+
+        # get a randomly available position
         while True:
             candidate_x = self.random.randint(self.space.x_min, self.space.x_max)
             candidate_lane = self.random.randint(self.space.y_min, self.space.y_max)
