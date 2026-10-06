@@ -1,11 +1,13 @@
 from .model import TrafficScenario
 
 # A scenario for calibrating the basic model with HDV-only car-following on a
-# single-lane 1 km ring. Aim is to match against:
-# - vehicle flow as the filter (1800-2400 veh/h/lane).
-# - breaking point
-# -
-# - concave growth pattern - "the standard deviation of the velocity increases in a concave way along vehicle platoon in the empirical oscillations, as observed in the traffic experiments" - Tian, 2016
+# single-lane 1 km ring. Patterns to match:
+# - capacity: 2400 pc/h/ln, from c = min(2200 + 10(FFS - 50), 2400)
+#   at FFS ~74 mi/h; HCM 6th ed. (TRB 2016), Ch. 12. Tolerance chosen: ± 150.
+# - density at capacity (held out): the flow peak should sit at 45 pc/mi/ln
+#   ~ 28 veh/km/ln; HCM 6th ed., Ch. 12. Tolerance chosen: ± 3.
+# - concave growth (held out): speed std rises along the platoon, concavely;
+#   Jiang et al. (2014), Tian et al. (2016).
 # TODO: set an initial placement ("even" vs "jam") once TrafficScenario has one;
 # random placement puts most runs on the jammed branch.
 calibration_hdvs = TrafficScenario(
