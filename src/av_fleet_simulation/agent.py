@@ -23,12 +23,13 @@ class VehicleParameters:
     STEP_S = 1.0  # s per step
 
     # Tian et al. (2015), Table 4, in cells and steps.
-    LENGTH = 7  # cells
+    LENGTH = 4  # cells
     A_MAX = 1  # cells/s^2
-    V_MAX = 33  # cells/s
+    V_MAX = 27  # cells/s, mean over vehicles
+    V_MAX_SD = 1  # cells/s, spread of each vehicle's own max speed
     G_SAFETY = 4  # cells; must be >= B_DEFENSE or cars can collide
     B_DEFENSE = 2  # cells/s^2, extra slowdown when defensive
-    T = 1.6  # s, desired time gap
+    T = 1.8  # s, desired time gap
     T_STOPPED = 8  # s stopped before slow-to-start applies
     # Probability of slowing down after the speed-up and brake. P_DEFENSIVE = 1, so
     # in a defensive state the defensive slowdown deterministically applies;
@@ -55,6 +56,13 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         self.position = self.params.initial_position
         self.length = VehicleParameters.LENGTH
         self.a_state: AState = AState.UNINITIALISED
+        # own max speed, an integer as the lattice requires, at least 1 cell/s
+        self.v_max: int = max(
+            1,
+            round(
+                self.random.gauss(VehicleParameters.V_MAX, VehicleParameters.V_MAX_SD)
+            ),
+        )
 
         # velocity
         self.v: float = 0
@@ -78,9 +86,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         self._position_change()
 
     def _deterministic_velocity(self):
-        self.v = min(
-            self.v + VehicleParameters.A_MAX, VehicleParameters.V_MAX, self.d_eff
-        )
+        self.v = min(self.v + VehicleParameters.A_MAX, self.v_max, self.d_eff)
 
     def _random_slowdown(self):
         p, v_slowdown = self._slowdown_probability_and_magnitude()
@@ -149,7 +155,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
     def get_leading_anticipated_v(self, leading: Self) -> float:
         """
         The leader's expected speed next step: it may speed up by A_MAX, but not
-        past V_MAX or its own gap (Tian et al. 2015).
+        past its own max speed or its own gap (Tian et al. 2015).
         """
         # TODO: implement dynamic velocity anticipation based on vehicle types
         # AVs could use V2V-reported intentions while HDVs use what is below
@@ -159,7 +165,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         return min(
             leading_gap,
             leading.v + VehicleParameters.A_MAX,
-            VehicleParameters.V_MAX,
+            leading.v_max,
         )
 
     def occupied_interval(self):
