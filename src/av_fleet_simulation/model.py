@@ -71,25 +71,36 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
         """
         lane_cells = self.scenario.road_length * self.scenario.lanes
 
+        def relevant_agents(agents, fleet_name):
+            if fleet_name:
+                agents = [
+                    agent for agent in agents if agent.params.fleet_name == fleet_name
+                ]
+            return agents
+
         def flow(fleet_name: str = ""):
             def _flow(model: MultiFleetTrafficModel):
-                relevant_agents = list(model.agents)
-                if fleet_name:
-                    relevant_agents = [
-                        agent
-                        for agent in relevant_agents
-                        if agent.params.fleet_name == fleet_name
-                    ]
-                return sum(a.v for a in relevant_agents) / lane_cells
+                agents = relevant_agents(list(model.agents), fleet_name)
+                return sum(a.v for a in agents) / lane_cells
 
             return _flow
+
+        def mean_v(fleet_name: str = ""):
+            def _mean_v(model: MultiFleetTrafficModel):
+                agents = relevant_agents(list(model.agents), fleet_name)
+                return mean(agent.v for agent in (a for a in agents))
+
+            return _mean_v
 
         model_reporters = {
             "flow": flow(),
             "flow_hdv": flow("HDV"),
             "flow_av1": flow("AV1"),
             "flow_av2": flow("AV2"),
-            "mean_v": lambda m: mean(agent.v for agent in (a for a in m.agents)),
+            "mean_v": mean_v(),
+            "mean_v_hdv": mean_v("HDV"),
+            "mean_v_av1": mean_v("AV1"),
+            "mean_v_av2": mean_v("AV2"),
             # "mean_d": lambda m: mean(agent.d for agent in (a for a in m.agents)),
             "stopped_count": lambda m: sum(
                 agent.v == 0 for agent in (a for a in m.agents)
