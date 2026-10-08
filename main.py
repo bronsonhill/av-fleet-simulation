@@ -74,3 +74,5 @@ page = SolaraViz(
 
 if __name__ == "__main__":
     run(model)
+    model_df = model.datacollector.get_model_vars_dataframe()
+    model_df.to_csv("results/model_data.csv")
