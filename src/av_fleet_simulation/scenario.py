@@ -18,3 +18,18 @@ calibration_hdvs = TrafficScenario(
     av_share=0.0,
     hdv_alpha=1.0,
 )
+
+# A scenario for the concave-growth test: 26 HDVs start in a jam on a single
+# lane; the experiment pins the front car to a fixed speed. The ring is long
+# enough that the platoon never spreads round to the leader's back.
+# Jiang et al. (2014); Tian et al. (2016), Sec. 3.3.
+platoon_hdvs = TrafficScenario(
+    rng=42,
+    lanes=1,
+    road_length=5000,
+    torus=True,
+    placement="jam",
+    density=5.2,  # 26 vehicles on 5 km
+    av_share=0.0,
+    hdv_alpha=1.0,
+)

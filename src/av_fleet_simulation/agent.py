@@ -72,6 +72,9 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         self.d_l: float = float("inf")
         # time steps spent stopped
         self.t_st: int = 0
+        # when set, the vehicle accelerates to this speed and holds it, ignoring
+        # the car ahead and random slowdown (a platoon leader in experiments)
+        self.v_fixed: int | None = None
 
     def move(self) -> None:
         """Updates vehicle speed and position (Tian et al. 2015, NHM)."""
@@ -89,6 +92,8 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         self.v = min(self.v + VehicleParameters.A_MAX, self.v_max, self.d_eff)
 
     def _random_slowdown(self):
+        if self.v_fixed is not None:
+            return 0
         p, v_slowdown = self._slowdown_probability_and_magnitude()
         if self.random.random() < p:
             self.v = max(self.v - v_slowdown, 0)
