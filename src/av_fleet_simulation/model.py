@@ -92,6 +92,13 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
 
             return _mean_v
 
+        def stopped_count(fleet_name: str = ""):
+            def _stopped_count(model: MultiFleetTrafficModel):
+                agents = relevant_agents(list(model.agents), fleet_name)
+                return sum(agent.v == 0 for agent in (a for a in agents))
+
+            return _stopped_count
+
         model_reporters = {
             "flow": flow(),
             "flow_hdv": flow("HDV"),
@@ -102,9 +109,10 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
             "mean_v_av1": mean_v("AV1"),
             "mean_v_av2": mean_v("AV2"),
             # "mean_d": lambda m: mean(agent.d for agent in (a for a in m.agents)),
-            "stopped_count": lambda m: sum(
-                agent.v == 0 for agent in (a for a in m.agents)
-            ),
+            "stopped_count": stopped_count(),
+            "stopped_count_hdv": stopped_count("HDV"),
+            "stopped_count_av1": stopped_count("AV1"),
+            "stopped_count_av2": stopped_count("AV2"),
             "stdev_v": lambda m: stdev(agent.v for agent in (a for a in m.agents)),
             "density": lambda m: len(m.agents) / lane_cells,
         }
