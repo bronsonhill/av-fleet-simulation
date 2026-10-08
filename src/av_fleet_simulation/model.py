@@ -65,11 +65,30 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
         self._init_datacollector()
 
     def _init_datacollector(self):
-        """Create a `datacollector` and assign it to the model"""
+        """
+        Create a `datacollector` and assign it to the model. Collects system
+        level data.
+        """
         lane_cells = self.scenario.road_length * self.scenario.lanes
 
+        def flow(fleet_name: str = ""):
+            def _flow(model: MultiFleetTrafficModel):
+                relevant_agents = list(model.agents)
+                if fleet_name:
+                    relevant_agents = [
+                        agent
+                        for agent in relevant_agents
+                        if agent.params.fleet_name == fleet_name
+                    ]
+                return sum(a.v for a in relevant_agents) / lane_cells
+
+            return _flow
+
         model_reporters = {
-            "flow": lambda m: sum(a.v for a in m.agents) / lane_cells,
+            "flow": flow(),
+            "flow_hdv": flow("HDV"),
+            "flow_av1": flow("AV1"),
+            "flow_av2": flow("AV2"),
             "mean_v": lambda m: mean(agent.v for agent in (a for a in m.agents)),
             # "mean_d": lambda m: mean(agent.d for agent in (a for a in m.agents)),
             "stopped_count": lambda m: sum(
