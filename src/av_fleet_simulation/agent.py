@@ -73,6 +73,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         # time steps spent stopped
         self.t_st: int = 0
 
+# ---------- vehicle movement ---------- #
     def move(self) -> None:
         """Updates vehicle speed and position (Tian et al. 2015, NHM)."""
 
@@ -128,7 +129,59 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         else:
             self.a_state = AState.NORMAL
 
-    def anticpate_safe_travel_dist(self) -> float:
+# ---------- vehicle detection & spacing ---------- #
+    def _get_leader(self) -> tuple[Self, float]:
+        """Gets the vehicle that is leading self in its lane <-(del?)
+        return nearest vehicle ahead in specified lane"""
+        if lane is None:
+            lane = self.position[1]
+
+        res: tuple[Self, float] = (self, float("inf"))
+        vehicles: AgentSet[Self] = self.space.agents
+
+        for vehicle in vehicles:
+                # in order to be leading must be in the same lane  <-(del?)
+                #if vehicle is not self and vehicle.position[1] == self.position[1]:  <-(del?)
+                if vehicle is self or vehicle.position[1] != lane:
+                    continue
+                # gap from self's front to the leader's rear
+                dist: float = vehicle.position[0] - vehicle.length - self.position[0]
+
+                if self.model.scenario.torus and dist < 0:
+                    dist += self.space.x_max
+
+                if dist < res[1]:
+                    res = (vehicle, dist)
+        return res
+
+    def _get_follower(self, lane: float | None = None) -> tuple[Self | None, float]:
+        """return nearest vehicle behind self in specified lane (new follower - MOBIL)"""
+        if lane is None:
+            lane = self.position[1]
+
+        follower = None
+        best_gap = float("inf")
+
+        for vehicle in self.space.agents:
+            if vehicle is self or vehicle.position[1] != lane:
+                continue
+            #gap from follower's front to self's reard
+            gap= (self.position[0] - self.length - vehicle.position[0])
+
+            if self.model.scenario.torus and gap < 0:
+                gap += self.space.x_max
+
+            if 0 <= gap< best_gap:
+                follower = vehicle
+                best_gap = gap
+
+        return follower, best_gap
+
+    
+
+
+# ---------- LC predictions ---------- #
+    def anticipate_safe_travel_dist(self) -> float:
         """
         The max distance that can be safely travelled on the next time step.
         """
@@ -149,6 +202,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         """predict deterministic next-step velocity in prospective lane"""
         d_eff = self._anticipated_safe_travel_dist_in_lane(lane)
         return min(self.v + VehicleParameters.A_MAX, VehicleParameters.V_MAX, d_eff)
+# ---------------------------- #
 
 # ---------- safety ---------- #
 # MOBIL inspired safety criteria for lane changes (Kesting et al. 2007) but adapted to NHM
@@ -173,7 +227,33 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         return self._front_gap_safe(target_lane) and self._rear_gap_safe(target_lane)
 # ---------------------------- #
 
+
+# ---------- LC incentive ---------- #
 #TODO : Gipps/MOBIL incentive
+
+    def _lane_change_gain(self, target_lane: float) -> float:
+        """Predicted velocity advantage from changing lanes."""
+
+        current_v = self._predicted_velocity_in_lane(self.position[1])
+        target_v = self._predicted_velocity_in_lane(target_lane)
+
+        return target_v - current_v
+
+    def _lane_change_desirable(self, target_lane: float) -> bool:
+        gain = self._lane_change_gain(target_lane)
+
+        return gain > VehicleParameters.LC_MIN_GAIN
+# ---------------------------- #
+
+    def _valid_adjacent_lanes(self) -> list[float]:
+            """return lanes immediately adjacent to current lane."""
+            current_lane = self.position[1]
+            lanes = [] #TODO: check model lane bounds -> inpiut
+            for offset in (-1, 1):
+                candidate = current_lane + offset
+                if 0 <= candidate < self.model.scenario.num_lanes:
+                    lanes.append(candidate)
+            return lanes
 
     def _get_desired_gap(self) -> float:
         """
@@ -184,30 +264,6 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         return VehicleParameters.G_SAFETY + max(
             0, self.v * VehicleParameters.T + breaking_term
         )
-
-    def _get_leader(self) -> tuple[Self, float]:
-        """Gets the vehicle that is leading self in its lane <-(del?)
-        return nearest vehicle ahead in specified lane"""
-        if lane is None:
-            lane = self.position[1]
-
-        res: tuple[Self, float] = (self, float("inf"))
-        vehicles: AgentSet[Self] = self.space.agents
-
-        for vehicle in vehicles:
-                # in order to be leading must be in the same lane  <-(del?)
-                #if vehicle is not self and vehicle.position[1] == self.position[1]:  <-(del?)
-                if vehicle is self or vehicle.position[1] != lane:
-                    continue
-                # gap from self's front to the leader's rear
-                dist: float = vehicle.position[0] - vehicle.length - self.position[0]
-
-                if self.model.scenario.torus and dist < 0:
-                    dist += self.space.x_max
-
-                if dist < res[1]:
-                    res = (vehicle, dist)
-        return res
 
     def get_leading_anticipated_v(self, leading: Self) -> float:
         """
@@ -254,3 +310,5 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         start = self.position[0] - self.length
         end = self.position[0]
         return start, end
+# ---------- LC decisions & execution ---------- #
+#TODO: implement MOBIL incentive model (Kesting et al. 2007) for lane change decisions
