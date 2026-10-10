@@ -19,7 +19,7 @@ FLEET_COLORS = {
 }
 
 scenario = calibration_hdvs
-# scenario = TrafficScenario()
+# scenario = TrafficScenario(rng=42)
 
 
 def agent_portrayal(agent):
