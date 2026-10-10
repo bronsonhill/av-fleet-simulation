@@ -1,9 +1,9 @@
 """
 Fundamental-diagram sweep for calibration: flow and speed against density for
-the calibration_hdvs scenario, which sets the initial placement.
+the calibration_hdvs scenario.
 
 Run from the repo root:
-    uv run python -m experiments.calibration_sweep
+    uv run python -m experiments.calibration
 Writes results/calibration_sweep.csv with one row per (density, seed), and
 results/calibration_sweep.png with flow and speed against density.
 """
@@ -118,9 +118,7 @@ def plot(rows: list[dict], out: Path) -> None:
             alpha=0.2,
             label="one dot per run",
         )
-        by_density = [
-            [r[key] for r in rows if r["density"] == k] for k in densities
-        ]
+        by_density = [[r[key] for r in rows if r["density"] == k] for k in densities]
         ax.errorbar(
             densities,
             [mean(v) for v in by_density],

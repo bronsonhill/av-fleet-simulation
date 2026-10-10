@@ -4,47 +4,10 @@ from typing import override
 
 import mesa
 from mesa.experimental.continuous_space import ContinuousSpace
-from mesa.experimental.scenarios import Scenario
 
 from src.av_fleet_simulation.agent import VehicleAgent, VehicleParameters
 
-
-class FleetParameters:
-    def __init__(self, alpha: float, n: int, name: str):
-        self.alpha = alpha
-        self.n = n
-        self.name = name
-
-
-class TrafficScenario(Scenario):
-    lanes: int = 2
-    road_length: int = 1000  # cells (m)
-    torus: bool = True
-    placement: str = "random"  # random, even (equal spacing) or jam (bumper to bumper)
-    density: float = 20  # veh/km/lane
-    av_share: float = 0.5  # (AV1 + AV2) / all vehicles
-    av1_share: float = 0.5  # AV1 / (AV1 + AV2)
-    hdv_alpha: float = 1.0
-    av1_alpha: float = 1.0
-    av2_alpha: float = 1.0
-
-    @property
-    def vehicle_n(self) -> int:
-        cells_per_km = 1000 / VehicleParameters.CELL_M
-        return round(self.density * self.lanes * self.road_length / cells_per_km)
-
-    @property
-    def fleets(self) -> list[FleetParameters]:
-        av_n = round(self.vehicle_n * self.av_share)
-        av1_n = round(av_n * self.av1_share)
-        return [
-            FleetParameters(self.hdv_alpha, self.vehicle_n - av_n, "HDV"),
-            FleetParameters(self.av1_alpha, av1_n, "AV1"),
-            FleetParameters(self.av2_alpha, av_n - av1_n, "AV2"),
-        ]
-
-    def to_dict(self):
-        return self.__dict__
+from .scenario import FleetParameters, TrafficScenario
 
 
 class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
@@ -65,16 +28,64 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
         self._init_datacollector()
 
     def _init_datacollector(self):
-        """Create a `datacollector` and assign it to the model"""
+        """
+        Create a `datacollector` and assign it to the model. Collects system
+        level data.
+        """
         lane_cells = self.scenario.road_length * self.scenario.lanes
 
+        def relevant_agents(agents, fleet_name):
+            if fleet_name:
+                agents = [
+                    agent for agent in agents if agent.params.fleet_name == fleet_name
+                ]
+            return agents
+
+        def flow(fleet_name: str = ""):
+            """
+            Flow in veh/cell/step, optionally filtered by fleet name.
+            Flow: q = k * v, density times mean velocity.
+            k = n / lane_cells, number of vehicles divided by total lane cells.
+            v = sum of v / n
+            So n cancels out, leaving sum of v / lane_cells, which is the total distance.
+            """
+
+            def _flow(model: MultiFleetTrafficModel):
+                agents = relevant_agents(list(model.agents), fleet_name)
+                return sum(a.v for a in agents) / lane_cells
+
+            return _flow
+
+        def mean_v(fleet_name: str = ""):
+            def _mean_v(model: MultiFleetTrafficModel):
+                agents = relevant_agents(list(model.agents), fleet_name)
+                if not agents:
+                    return 0
+                return mean(agent.v for agent in (a for a in agents))
+
+            return _mean_v
+
+        def stopped_count(fleet_name: str = ""):
+            def _stopped_count(model: MultiFleetTrafficModel):
+                agents = relevant_agents(list(model.agents), fleet_name)
+                return sum(agent.v == 0 for agent in (a for a in agents))
+
+            return _stopped_count
+
         model_reporters = {
-            "flow": lambda m: sum(a.v for a in m.agents) / lane_cells,
-            "mean_v": lambda m: mean(agent.v for agent in (a for a in m.agents)),
+            "flow": flow(),
+            "flow_hdv": flow("HDV"),
+            "flow_av1": flow("AV1"),
+            "flow_av2": flow("AV2"),
+            "mean_v": mean_v(),
+            "mean_v_hdv": mean_v("HDV"),
+            "mean_v_av1": mean_v("AV1"),
+            "mean_v_av2": mean_v("AV2"),
             # "mean_d": lambda m: mean(agent.d for agent in (a for a in m.agents)),
-            "stopped_count": lambda m: sum(
-                agent.v == 0 for agent in (a for a in m.agents)
-            ),
+            "stopped_count": stopped_count(),
+            "stopped_count_hdv": stopped_count("HDV"),
+            "stopped_count_av1": stopped_count("AV1"),
+            "stopped_count_av2": stopped_count("AV2"),
             "stdev_v": lambda m: stdev(agent.v for agent in (a for a in m.agents)),
             "density": lambda m: len(m.agents) / lane_cells,
         }
