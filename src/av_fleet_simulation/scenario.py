@@ -1,4 +1,46 @@
-from .model import TrafficScenario
+from mesa.experimental.scenarios import Scenario
+
+from .model import VehicleParameters
+
+
+class FleetParameters:
+    def __init__(self, alpha: float, n: int, name: str):
+        self.alpha = alpha
+        self.n = n
+        self.name = name
+
+
+class TrafficScenario(Scenario):
+    rng: int = 42
+    lanes: int = 2
+    road_length: int = 1000  # cells (m)
+    torus: bool = True
+    placement: str = "random"  # random, even (equal spacing) or jam (bumper to bumper)
+    density: float = 20  # veh/km/lane
+    av_share: float = 0.5  # (AV1 + AV2) / all vehicles
+    av1_share: float = 0.5  # AV1 / (AV1 + AV2)
+    hdv_alpha: float = 1.0
+    av1_alpha: float = 1.0
+    av2_alpha: float = 1.0
+
+    @property
+    def vehicle_n(self) -> int:
+        cells_per_km = 1000 / VehicleParameters.CELL_M
+        return round(self.density * self.lanes * self.road_length / cells_per_km)
+
+    @property
+    def fleets(self) -> list[FleetParameters]:
+        av_n = round(self.vehicle_n * self.av_share)
+        av1_n = round(av_n * self.av1_share)
+        return [
+            FleetParameters(self.hdv_alpha, self.vehicle_n - av_n, "HDV"),
+            FleetParameters(self.av1_alpha, av1_n, "AV1"),
+            FleetParameters(self.av2_alpha, av_n - av1_n, "AV2"),
+        ]
+
+    def to_dict(self):
+        return self.__dict__
+
 
 # A scenario for calibrating the basic model with HDV-only car-following on a
 # single-lane 1 km ring. Patterns to match:
