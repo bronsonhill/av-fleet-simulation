@@ -6,7 +6,8 @@ import mesa
 from mesa.experimental.continuous_space import ContinuousSpace
 from mesa.experimental.scenarios import Scenario
 
-from src.av_fleet_simulation.agent import VehicleAgent, VehicleParameters
+#from src.av_fleet_simulation.agent import VehicleAgent, VehicleParameters
+from .agent import VehicleAgent, VehicleParameters
 
 
 class FleetParameters:
@@ -181,7 +182,13 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
 
     @override
     def step(self) -> None:
-        """Advance the model by one step"""
+        """Advance the model by one step """
+        self._update_leaders()
+        #LC phasee
+        self.agents.do("plan_lane_change")
+        self._resolve_lc_conflicts()
+        self.agents.do("apply_lane_change")
+        #longitudinal movement phase
         self._update_leaders()
         self.agents.do("update_a_state")
         self.agents.do("move")
@@ -213,3 +220,31 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
                 if torus and gap < 0:
                     gap += self.space.x_max
                 self.leaders[car] = (leader, gap)
+
+    def _resolve_lc_conflicts(self):
+        """ resolve competing LC proposales before vehicles execute their lane changes
+        conservative implementation; all og positions are reserved, approved targets are
+        reserved, proposals that overlap either are rejected
+        """
+# TODO [safety] extend checks to predicted next step movement
+# TODO [dms] dms affects indiv. gap acceptance not conflict-resolution priority
+        proposals = [agent for agent in self.agents if agent.target_lane is not None]
+        self.random.shuffle(proposals)
+        proposals.sort(key=lambda agent: agent.v, reverse=True)
+        reservations = [(agent, agent.position[1]) for agent in self.agents]
+        for agent in proposals:
+            target_lane = agent.target_lane
+            conflict = False
+            for other, reserved_lane in reservations:
+                if other is agent:
+                    continue
+                if reserved_lane != target_lane:
+                    continue
+                if agent._overlaps_vehicle(other):
+                    conflict = True
+                    break
+            if conflict: 
+                agent.target_lane = None
+            else: 
+                reservations.append((agent, target_lane))
+
