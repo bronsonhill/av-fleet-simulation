@@ -186,12 +186,12 @@ def test_13_alpha_affects_rear_gap_acceptance(traffic_model):
     ego.position = (100, 1)
     ego.v = 5
     other.position = (300, 1)
-    follower.position = (90, 2)
+    follower.position = (92, 2)
     follower.v = 5
     remaining.position = (700, 2) #rear gap is 3 cells
     ego.params.alpha = 2
     assert not ego._rear_gap_safe(2)
-    follower.position = (85, 2) #follower moved back (8 cells)
+    follower.position = (87, 2) #follower moved back (8 cells RG range)
     ego.params.alpha = 6
     assert ego._rear_gap_safe(2)
     ego.params.alpha = 10
@@ -213,4 +213,12 @@ all 16 tests PASSED
 16 tests PASSED 1 test FAILED (test_13)
 ...removed boolean assertion...
 all 17 tests PASSED
+
+after resto0ring V_MAX_SD
+all 17 tests PASSED
+
+after attempting to reconcile leader detetection
+15 tests PASSED, 2 tests FAILED (05, 06)
+...updated leradder cache population...
+all 17 tests PAASSED
 """

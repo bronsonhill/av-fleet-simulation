@@ -73,6 +73,4 @@ def test_07_occupied_target_lane():
 """
 > python3 -m uv run pytest tests/test_lane_geom.py -v
 all 7 tests passed
-
-
 """

@@ -29,12 +29,13 @@ class VehicleParameters:
     STEP_S = 1.0  # s per step
 
     # Tian et al. (2015), Table 4, in cells and steps.
-    LENGTH = 7  # cells
+    LENGTH = 5  # cells -> (previously 7)
     A_MAX = 1  # cells/s^2
-    V_MAX = 33  # cells/s
+    V_MAX = 27  # cells/s -> (previously 33)
+    V_MAX_SD = 2  # cells/s, spread of individual maximum speeds
     G_SAFETY = 4  # cells; must be >= B_DEFENSE or cars can collide
     B_DEFENSE = 2  # cells/s^2, extra slowdown when defensive
-    T = 1.6  # s, desired time gap
+    T = 1.8  # s, desired time gap -> (previously 1.6)
     T_STOPPED = 8  # s stopped before slow-to-start applies
     # Probability of slowing down after the speed-up and brake. P_DEFENSIVE = 1, so
     # in a defensive state the defensive slowdown deterministically applies;
@@ -45,9 +46,9 @@ class VehicleParameters:
 
     #LC params --> need calibration!!!!!
     LC_MIN_GAIN = 1.0 #cells/s pred. speed avg
-    LC_SAFE_BRAKE = 2.0 #cells/s^2 aacceptable braking for target follower
+    #LC_SAFE_BRAKE = 2.0 #cells/s^2 aacceptable braking for target follower
     LC_COOLDOWN  = 3 # steps befgore next lane change 
-    LC_POLITENESS = 0.5 #MOBIL weighting of follower disadvantage (Kesting et al. 2007)
+    #LC_POLITENESS = 0.5 #MOBIL weighting of follower disadvantage (Kesting et al. 2007)
 
     def __init__(self, alpha: float, fleet_name: str, initial_position):
         self.alpha = alpha
@@ -68,6 +69,17 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         self.position = self.params.initial_position
         self.length = VehicleParameters.LENGTH
         self.a_state: AState = AState.UNINITIALISED
+
+        # Individual maximum speed, sampled at vehicle initialisation
+        self.v_max: int = max(
+            1,
+            round(
+                self.random.gauss(
+                    VehicleParameters.V_MAX,
+                    VehicleParameters.V_MAX_SD
+                )
+            ),
+        )
 
         # velocity
         self.v: float = 0
@@ -97,7 +109,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
 
     def _deterministic_velocity(self):
         self.v = min(
-            self.v + VehicleParameters.A_MAX, VehicleParameters.V_MAX, self.d_eff
+            self.v + VehicleParameters.A_MAX, self.v_max, self.d_eff
         )
 
     def _random_slowdown(self):
@@ -183,15 +195,23 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         return True
     
     def _get_leader(self, lane: int | None = None) -> tuple[Self, float]: #FLAG ==> duplicates some work in _update_leaders (in model.py)
-# TODO [mainmerge]: main branch uses model.leadersd to cache current lane leaders, preserve that optimisation &
-#provide seperate lookup for hypothetical target lanes
-        """Gets the vehicle that is leading self in its lane <-(del?) 
-        return nearest leader and its bumper gap in given lane"""
+# TODO [mainmerge]: main branch uses model.leadersd to cache current lane leaders, preserve that optimisation & provide seperate lookup for hypothetical target lanes
+        """return nearest leader and its bumper gap in given lane
+        uses model's cached leader for current lane, searches vehicle positions 
+        for hypothetical target lanes"""
+        current_lane = int(self.position[1]) 
+        # if CL leader cached, use it; if not, search vehicle positions directly; if evaluating different lane, search vehicle positions directly
         if lane is None:
-            lane = int(self.position[1])
+            lane = current_lane
+        if lane == current_lane:
+            cached_result = getattr(self.model, "leaders", {}).get(self)
+            if cached_result is not None: 
+                return cached_result
+        
         leader = self
         nearest_distance = float("inf")
         leader_gap = float("inf") 
+
         for vehicle in self.space.agents:
                 if vehicle is self or vehicle.position[1] != lane:
                     continue
@@ -236,7 +256,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         return min(
             leading_gap,
             leading.v + VehicleParameters.A_MAX,
-            VehicleParameters.V_MAX,
+            leading.v_max,
         )
 
     def _get_desired_gap(self) -> float:
@@ -290,7 +310,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
 # TODO [MAIN MERGE]: main branch assigns individual vehicle max speeds (self.v_max); replace VehicleParameters.V_MAX 
 # when integrating with updated long. model
         d_eff = self._anticipated_safe_travel_dist_in_lane(lane)
-        return min(self.v + VehicleParameters.A_MAX, VehicleParameters.V_MAX, d_eff)
+        return min(self.v + VehicleParameters.A_MAX, self.v_max, d_eff)
 # ------------------------------------ #
 
 
