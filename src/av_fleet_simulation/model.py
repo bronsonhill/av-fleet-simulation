@@ -82,7 +82,7 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
             ),
             "stdev_v": lambda m: stdev(agent.v for agent in (a for a in m.agents)),
             "density": lambda m: len(m.agents) / lane_cells,
-            "lane_changes": lambda m: sum(
+            "total_lane_changes": lambda m: sum(
                 agent.lane_change_count for agent in m.agents
             ),
         }

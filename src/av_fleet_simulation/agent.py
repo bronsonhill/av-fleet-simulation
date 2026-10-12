@@ -315,7 +315,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         leader, gap = self._get_leader(target_lane)
         if leader is self:
             return True
-        return gap >= VehicleParameters.G_SAFETY  # + self.v <-(del?)
+        return gap >= VehicleParameters.G_SAFETY + self.v
 
     def _rear_gap_safe(self, target_lane: float) -> bool:
         # TODO [DMS]: replace shared accepted-gap criterion w/fleet-dependent minimum merging gap:

@@ -31,6 +31,8 @@ def make_value_component(*reporters):
         if "density" in reporters:
             veh_per_km = latest["density"] * 1000 / VehicleParameters.CELL_M
             rows += f"\n| density (veh/km/lane) | {veh_per_km:.0f} |"
+        if "lane_changes" in df.columns:
+            rows += f"\n| lane changes (total) | {int(latest['lane_changes'])} |"
         return solara.Markdown(
             f"**Step {model.steps}**\n\n| Metric | Value |\n|---|---|\n{rows}"
         )
@@ -62,14 +64,19 @@ page = SolaraViz(
     renderer,
     components=[
         make_value_component(
-            "density", "flow", "mean_v", "stdev_v", "stopped_count", "lane_changes"
+            "density",
+            "flow",
+            "mean_v",
+            "stdev_v",
+            "stopped_count",
+            "total_lane_changes",
         ),
         make_plot_component("flow"),
         make_plot_component("mean_v"),
         # make_plot_component("mean_d"),
         make_plot_component("stopped_count"),
         make_plot_component("stdev_v"),
-        make_plot_component("lane_changes"),
+        make_plot_component("total_lane_changes"),
     ],
     model_params=model_params,
 )
