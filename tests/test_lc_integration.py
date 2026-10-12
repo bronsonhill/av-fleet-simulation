@@ -171,8 +171,8 @@ def test_12_lane_change_cooldown(traffic_model, monkeypatch):
     ego.plan_lane_change() #1st  lc success
     ego.apply_lane_change() # one small step for car, one big roll for car kind
     assert ego.position[1] == 2
-    assert ego.lc_cooldown == VehicleParameters.LC_COOLDOWN
-    for _ in range(VehicleParameters.LC_COOLDOWN): # more proposals blocked during cd
+    assert ego.lc_cooldown == model.scenario.lc_cooldown
+    for _ in range(model.scenario.lc_cooldown): # more proposals blocked during cd
         ego.plan_lane_change()
         assert ego.target_lane is None
         ego.apply_lane_change()

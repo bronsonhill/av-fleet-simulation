@@ -28,6 +28,8 @@ class TrafficScenario(Scenario):
     hdv_alpha: float = 1.0
     av1_alpha: float = 1.0
     av2_alpha: float = 1.0
+    lc_min_gain: float = 1.0 # cells/s -> minimin pred. speed gain based on Gipps (1986)
+    lc_cooldown: int = 3 # steps befgore next lane change 
 
     @property
     def vehicle_n(self) -> int:
@@ -78,6 +80,7 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
             ),
             "stdev_v": lambda m: stdev(agent.v for agent in (a for a in m.agents)),
             "density": lambda m: len(m.agents) / lane_cells,
+            "lane_changes": lambda m: sum(agent.lane_change_count for agent in m.agents),
         }
         self.datacollector = mesa.DataCollector(model_reporters=model_reporters)
 
@@ -226,8 +229,8 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
         conservative implementation; all og positions are reserved, approved targets are
         reserved, proposals that overlap either are rejected
         """
-# TODO [safety] extend checks to predicted next step movement
-# TODO [dms] dms affects indiv. gap acceptance not conflict-resolution priority
+# TODO [safety] -> extend checks to predicted next step movement
+        # dms affects indiv. gap acceptance not conflict-resolution priority
         proposals = [agent for agent in self.agents if agent.target_lane is not None]
         self.random.shuffle(proposals)
         proposals.sort(key=lambda agent: agent.v, reverse=True)

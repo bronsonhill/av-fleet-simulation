@@ -61,12 +61,13 @@ page = SolaraViz(
     model,
     renderer,
     components=[
-        make_value_component("density", "flow", "mean_v", "stdev_v", "stopped_count"),
+        make_value_component("density", "flow", "mean_v", "stdev_v", "stopped_count", "lane_changes"),
         make_plot_component("flow"),
         make_plot_component("mean_v"),
         # make_plot_component("mean_d"),
         make_plot_component("stopped_count"),
         make_plot_component("stdev_v"),
+        make_plot_component("lane_changes"),
     ],
     model_params=model_params,
 )

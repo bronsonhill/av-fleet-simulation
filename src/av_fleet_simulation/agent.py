@@ -14,11 +14,9 @@ class AState(Enum):
 
 
 class VehicleParameters:
-# TODO [DMS]: Alpha is provisionally interpreted as minimum accepted merging gap in cells, confirm if still the case
-#
-# TODO [DMS]: Add independent DMS config for AV1 & AV2
-#
-# TODO [MOBIL]: LC_POLITENESS and LC_SAFE_BRAKE not yet incorporated into LC decision rules.
+# TODO [DMS] -> alpha is provisionally interpreted as minimum accepted merging gap in cells, confirm if still the case
+# TODO [DMS] -> dd independent DMS config for AV1 & AV2
+# TODO [MOBIL] -> LC_POLITENESS and LC_SAFE_BRAKE not yet incorporated into LC decision rules
     """
     Parameters a vehicle requires for initialisation.
     Static class variables are constants that are not varied per vehicle or fleet.
@@ -44,10 +42,8 @@ class VehicleParameters:
     P_DEFENSIVE = 1.0  # pa + pc (capped at 1)
     P_STOPPED = 0.65  # pb + pc
 
-    #LC params --> need calibration!!!!!
-    LC_MIN_GAIN = 1.0 #cells/s pred. speed avg
+    #LC params
     #LC_SAFE_BRAKE = 2.0 #cells/s^2 aacceptable braking for target follower
-    LC_COOLDOWN  = 3 # steps befgore next lane change 
     #LC_POLITENESS = 0.5 #MOBIL weighting of follower disadvantage (Kesting et al. 2007)
 
     def __init__(self, alpha: float, fleet_name: str, initial_position):
@@ -91,8 +87,8 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         self.t_st: int = 0
         # LC state
         self.target_lane: int | None = None
-
         self.lc_cooldown = 0
+        self.lane_change_count = 0
 
 # ---------- vehicle movement ---------- #
     def move(self) -> None:
@@ -194,8 +190,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
                 return False
         return True
     
-    def _get_leader(self, lane: int | None = None) -> tuple[Self, float]: #FLAG ==> duplicates some work in _update_leaders (in model.py)
-# TODO [mainmerge]: main branch uses model.leadersd to cache current lane leaders, preserve that optimisation & provide seperate lookup for hypothetical target lanes
+    def _get_leader(self, lane: int | None = None) -> tuple[Self, float]:
         """return nearest leader and its bumper gap in given lane
         uses model's cached leader for current lane, searches vehicle positions 
         for hypothetical target lanes"""
@@ -307,8 +302,6 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
 
     def _predicted_velocity_in_lane(self, lane: float) -> float:
         """predict deterministic next-step velocity in prospective lane"""
-# TODO [MAIN MERGE]: main branch assigns individual vehicle max speeds (self.v_max); replace VehicleParameters.V_MAX 
-# when integrating with updated long. model
         d_eff = self._anticipated_safe_travel_dist_in_lane(lane)
         return min(self.v + VehicleParameters.A_MAX, self.v_max, d_eff)
 # ------------------------------------ #
@@ -332,8 +325,6 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         follower, gap = self._get_follower(target_lane)
         if follower is None:
             return True
-        #closing_speed = max(follower.v - self.v, 0) #relative clsoing speed
-        #required_gap = (VehicleParameters.G_SAFETY + closing_speed * VehicleParameters.T)
         required_gap = self._required_rear_merge_gap(follower)
         return gap >= required_gap
 
@@ -349,8 +340,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
 
 
 # ---------- LC incentive ---------- #
-#TODO : Gipps/MOBIL incentive
-
+# Gipps (1986) inspired speed-gain incentive (not full MOBIL)
     def _lane_change_gain(self, target_lane: float) -> float:
         """Predicted velocity advantage from changing lanes."""
 
@@ -359,9 +349,9 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
 
         return target_v - current_v
 
-    def _lane_change_desirable(self, target_lane: float) -> bool: #FLAG ==> currently not used
+    def _lc_desirable(self, target_lane: float) -> bool: #FLAG ==> currently not used
         gain = self._lane_change_gain(target_lane)
-        return gain > VehicleParameters.LC_MIN_GAIN
+        return gain > self.model.scenario.lc_min_gain
 # ---------------------------------- #
 
 
@@ -370,7 +360,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         """choose safest & most advantageous adj. lane
         returns target lane or none if no lane change is safe and desirable"""
         best_lane = None
-        best_gain = VehicleParameters.LC_MIN_GAIN
+        best_gain = self.model.scenario.lc_min_gain
 
         for target_lane in self._valid_adjacent_lanes():
             if not self._lane_change_safe(target_lane): #Gipps(1986): establish feasibility/safety
@@ -391,6 +381,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
     def apply_lane_change(self) -> None:
         if self.target_lane is not None:
             self.position[1] = self.target_lane
-            self.lc_cooldown = VehicleParameters.LC_COOLDOWN #cooldown starts when LC happens
+            self.lc_cooldown = self.model.scenario.lc_cooldown
+            self.lane_change_count += 1
         self.target_lane = None
 # ---------------------------------------------- #
