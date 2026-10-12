@@ -118,9 +118,7 @@ def plot(rows: list[dict], out: Path) -> None:
             alpha=0.2,
             label="one dot per run",
         )
-        by_density = [
-            [r[key] for r in rows if r["density"] == k] for k in densities
-        ]
+        by_density = [[r[key] for r in rows if r["density"] == k] for k in densities]
         ax.errorbar(
             densities,
             [mean(v) for v in by_density],
