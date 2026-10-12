@@ -1,9 +1,9 @@
 """
 Fundamental-diagram sweep for calibration: flow and speed against density for
-the calibration_hdvs scenario, which sets the initial placement.
+the calibration_hdvs scenario.
 
 Run from the repo root:
-    uv run python -m experiments.calibration_sweep
+    uv run python -m experiments.calibration
 Writes results/calibration_sweep.csv with one row per (density, seed), and
 results/calibration_sweep.png with flow and speed against density.
 """
