@@ -1,6 +1,6 @@
 from mesa.experimental.scenarios import Scenario
 
-from .model import VehicleParameters
+from .agent import VehicleParameters
 
 
 class FleetParameters:
@@ -22,6 +22,10 @@ class TrafficScenario(Scenario):
     hdv_alpha: float = 1.0
     av1_alpha: float = 1.0
     av2_alpha: float = 1.0
+    lc_min_gain: float = (
+        1.0  # cells/s -> minimin pred. speed gain based on Gipps (1986)
+    )
+    lc_cooldown: int = 3  # steps befgore next lane change
 
     @property
     def vehicle_n(self) -> int:
