@@ -5,8 +5,8 @@ from typing import override
 import mesa
 from mesa.experimental.continuous_space import ContinuousSpace
 
-from src.av_fleet_simulation.agent import VehicleAgent, VehicleParameters
-
+# from src.av_fleet_simulation.agent import VehicleAgent, VehicleParameters
+from .agent import VehicleAgent, VehicleParameters
 from .scenario import FleetParameters, TrafficScenario
 
 
@@ -88,6 +88,9 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
             "stopped_count_av2": stopped_count("AV2"),
             "stdev_v": lambda m: stdev(agent.v for agent in (a for a in m.agents)),
             "density": lambda m: len(m.agents) / lane_cells,
+            "total_lane_changes": lambda m: sum(
+                agent.lane_change_count for agent in m.agents
+            ),
         }
         self.datacollector = mesa.DataCollector(model_reporters=model_reporters)
 
@@ -194,6 +197,12 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
     def step(self) -> None:
         """Advance the model by one step"""
         self._update_leaders()
+        # LC phasee
+        self.agents.do("plan_lane_change")
+        self._resolve_lc_conflicts()
+        self.agents.do("apply_lane_change")
+        # longitudinal movement phase
+        self._update_leaders()
         self.agents.do("update_a_state")
         self.agents.do("move")
         self.datacollector.collect(self)
@@ -224,3 +233,30 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
                 if torus and gap < 0:
                     gap += self.space.x_max
                 self.leaders[car] = (leader, gap)
+
+    def _resolve_lc_conflicts(self):
+        """resolve competing LC proposales before vehicles execute their lane changes
+        conservative implementation; all og positions are reserved, approved targets are
+        reserved, proposals that overlap either are rejected
+        """
+        # TODO [safety] -> extend checks to predicted next step movement
+        # dms affects indiv. gap acceptance not conflict-resolution priority
+        proposals = [agent for agent in self.agents if agent.target_lane is not None]
+        self.random.shuffle(proposals)
+        proposals.sort(key=lambda agent: agent.v, reverse=True)
+        reservations = [(agent, agent.position[1]) for agent in self.agents]
+        for agent in proposals:
+            target_lane = agent.target_lane
+            conflict = False
+            for other, reserved_lane in reservations:
+                if other is agent:
+                    continue
+                if reserved_lane != target_lane:
+                    continue
+                if agent._overlaps_vehicle(other):
+                    conflict = True
+                    break
+            if conflict:
+                agent.target_lane = None
+            else:
+                reservations.append((agent, target_lane))
