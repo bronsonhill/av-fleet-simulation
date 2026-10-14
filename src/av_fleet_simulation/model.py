@@ -195,16 +195,22 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
 
     @override
     def step(self) -> None:
-        """Advance the model by one step"""
+        """
+        Advance the model by one step. Synchronous update: each phase runs for
+        every vehicle before the next phase starts.
+        """
+        # lane change phase
         self._update_leaders()
-        # LC phasee
         self.agents.do("plan_lane_change")
         self._resolve_lc_conflicts()
         self.agents.do("apply_lane_change")
-        # longitudinal movement phase
+        # longitudinal movement phase (Tian et al. 2015, NHM)
         self._update_leaders()
         self.agents.do("update_a_state")
-        self.agents.do("move")
+        self.agents.do("deterministic_velocity")
+        self.agents.do("random_slowdown")
+        self.agents.do("update_stopped_time")
+        self.agents.do("position_change")
         self.datacollector.collect(self)
 
     def _update_leaders(self) -> None:

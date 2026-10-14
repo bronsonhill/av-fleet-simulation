@@ -87,29 +87,19 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         self.lc_cooldown = 0
         self.lane_change_count = 0
 
-    # ---------- vehicle movement ---------- #
-    def move(self) -> None:
-        """Updates vehicle speed and position (Tian et al. 2015, NHM)."""
-
-        self._deterministic_velocity()
-
-        self._random_slowdown()
-
-        # update time stationary
-        self.t_st = self.t_st + 1 if self.v == 0 else 0
-
-        self._position_change()
-
-    def _deterministic_velocity(self):
+    # ---------- vehicle movement (Tian et al. 2015, NHM) ---------- #
+    def deterministic_velocity(self):
         self.v = min(self.v + VehicleParameters.A_MAX, self.v_max, self.d_eff)
 
-    def _random_slowdown(self):
+    def random_slowdown(self):
         p, v_slowdown = self._slowdown_probability_and_magnitude()
         if self.random.random() < p:
             self.v = max(self.v - v_slowdown, 0)
-        return 0
 
-    def _position_change(self):
+    def update_stopped_time(self):
+        self.t_st = self.t_st + 1 if self.v == 0 else 0
+
+    def position_change(self):
         self.position[0] += self.v
 
         if self.space.torus:
