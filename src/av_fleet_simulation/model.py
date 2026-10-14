@@ -5,7 +5,6 @@ from typing import override
 import mesa
 from mesa.experimental.continuous_space import ContinuousSpace
 
-# from src.av_fleet_simulation.agent import VehicleAgent, VehicleParameters
 from .agent import VehicleAgent, VehicleParameters
 from .scenario import FleetParameters, TrafficScenario
 
@@ -122,7 +121,9 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
                 args=[
                     self.space,
                     VehicleParameters(
-                        params.alpha, params.name, self._get_available_position()
+                        params.name,
+                        self._get_available_position(),
+                        params.av_merge_t,
                     ),
                 ],
                 n=1,

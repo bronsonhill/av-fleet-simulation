@@ -4,10 +4,10 @@ from .agent import VehicleParameters
 
 
 class FleetParameters:
-    def __init__(self, alpha: float, n: int, name: str):
-        self.alpha = alpha
+    def __init__(self, n: int, name: str, av_merge_t: float | None = None):
         self.n = n
         self.name = name
+        self.av_merge_t = av_merge_t
 
 
 class TrafficScenario(Scenario):
@@ -19,13 +19,18 @@ class TrafficScenario(Scenario):
     density: float = 20  # veh/km/lane
     av_share: float = 0.5  # (AV1 + AV2) / all vehicles
     av1_share: float = 0.5  # AV1 / (AV1 + AV2)
-    hdv_alpha: float = 1.0
-    av1_alpha: float = 1.0
-    av2_alpha: float = 1.0
+    # Dynamic merge sensing: the time gap (s) each AV fleet requires behind it
+    # when merging in front of an AV. VehicleParameters.T (1.8 s) is no DMS, the
+    # same gap it needs in front of an HDV; 0 leaves only G_SAFETY.
+    av1_merge_t: float = VehicleParameters.T
+    av2_merge_t: float = VehicleParameters.T
     lc_min_gain: float = (
         1.0  # cells/s -> minimin pred. speed gain based on Gipps (1986)
     )
     lc_cooldown: int = 3  # steps befgore next lane change
+    # s of travel ahead in which a slower leader caps a lane's sustainable speed;
+    # calibrated to Knoop et al. (2012), 0.4-0.5 LC/veh-km in free flow
+    lc_lookahead: float = 5.0
 
     @property
     def vehicle_n(self) -> int:
@@ -37,9 +42,9 @@ class TrafficScenario(Scenario):
         av_n = round(self.vehicle_n * self.av_share)
         av1_n = round(av_n * self.av1_share)
         return [
-            FleetParameters(self.hdv_alpha, self.vehicle_n - av_n, "HDV"),
-            FleetParameters(self.av1_alpha, av1_n, "AV1"),
-            FleetParameters(self.av2_alpha, av_n - av1_n, "AV2"),
+            FleetParameters(self.vehicle_n - av_n, "HDV"),
+            FleetParameters(av1_n, "AV1", self.av1_merge_t),
+            FleetParameters(av_n - av1_n, "AV2", self.av2_merge_t),
         ]
 
     def to_dict(self):
@@ -62,5 +67,4 @@ calibration_hdvs = TrafficScenario(
     placement="even",
     density=20,
     av_share=0.0,
-    hdv_alpha=1.0,
 )

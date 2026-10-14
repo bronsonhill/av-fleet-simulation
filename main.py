@@ -67,9 +67,12 @@ model_params = {
     "density": Slider("Density (veh/km/lane)", scenario.density, 5, 80, 1),
     "av_share": Slider("AV share", scenario.av_share, 0.0, 1.0, 0.05),
     "av1_share": Slider("AV1 share of AVs", scenario.av1_share, 0.0, 1.0, 0.05),
-    "hdv_alpha": Slider("HDV alpha", scenario.hdv_alpha, 0.0, 2.0, 0.1),
-    "av1_alpha": Slider("AV1 alpha", scenario.av1_alpha, 1.0, 0.0, 2.0, 0.1),
-    "av2_alpha": Slider("AV2 alpha", scenario.av2_alpha, 1.0, 0.0, 2.0, 0.1),
+    "av1_merge_t": Slider(
+        "AV1 safe merge time (s)", scenario.av1_merge_t, 0.0, VehicleParameters.T, 0.05
+    ),
+    "av2_merge_t": Slider(
+        "AV2 safe merge time (s)", scenario.av2_merge_t, 0.0, VehicleParameters.T, 0.05
+    ),
 }
 
 model = MultiFleetTrafficModel(scenario=scenario)

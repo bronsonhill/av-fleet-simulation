@@ -14,7 +14,6 @@ class AState(Enum):
 
 
 class VehicleParameters:
-    # TODO [DMS] -> alpha is provisionally interpreted as minimum accepted merging gap in cells, confirm if still the case
     # TODO [DMS] -> dd independent DMS config for AV1 & AV2
     # TODO [MOBIL] -> LC_POLITENESS and LC_SAFE_BRAKE not yet incorporated into LC decision rules
     """
@@ -46,8 +45,15 @@ class VehicleParameters:
     # LC_SAFE_BRAKE = 2.0 #cells/s^2 aacceptable braking for target follower
     # LC_POLITENESS = 0.5 #MOBIL weighting of follower disadvantage (Kesting et al. 2007)
 
-    def __init__(self, alpha: float, fleet_name: str, initial_position):
-        self.alpha = alpha
+    def __init__(
+        self,
+        fleet_name: str,
+        initial_position,
+        av_merge_t: float | None = None,
+    ):
+        # time gap (s) used for the rear merge gap when the follower is an AV;
+        # equal to T for HDVs and for AV fleets without DMS
+        self.av_merge_t = VehicleParameters.T if av_merge_t is None else av_merge_t
         self.fleet_name = fleet_name
         self.initial_position = initial_position
         # self.target_lane = None
@@ -259,13 +265,20 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         end = self.position[0]
         return start, end
 
+    def is_av(self) -> bool:
+        return self.params.fleet_name != "HDV"
+
     def _required_rear_merge_gap(self, follower):
-        """min. acceptable rear gap for LC
-        TODO[dms] when enabled adjust behavioural gap according to follower flet"""
+        """min. acceptable rear gap for LC.
+        DMS: when the prospective follower is an AV, the ego uses its fleet's
+        av_merge_t in place of T, on the assumption that an AV follower reacts
+        faster than an HDV. The standstill buffer G_SAFETY always applies, and
+        G_SAFETY >= B_DEFENSE keeps the merge collision free."""
         closing_speed = max(follower.v - self.v, 0)
-        safety_gap = VehicleParameters.G_SAFETY + closing_speed * VehicleParameters.T
-        behavioural_gap = self.params.alpha
-        return max(safety_gap, behavioural_gap)
+        headway = VehicleParameters.T
+        if follower.is_av():
+            headway = self.params.av_merge_t
+        return VehicleParameters.G_SAFETY + closing_speed * headway
 
     # ------------------------------------------------- #
 
@@ -292,9 +305,20 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         return gap + max(v_anti - VehicleParameters.G_SAFETY, 0)
 
     def _predicted_velocity_in_lane(self, lane: float) -> float:
-        """predict deterministic next-step velocity in prospective lane"""
+        """predict deterministic next-step velocity in prospective lane.
+        A leader within the look-ahead distance (lc_lookahead seconds of travel
+        plus G_SAFETY) caps the speed the vehicle can sustain in that lane at the
+        leader's anticipated speed, so a vehicle behind a slower leader sees a
+        gain in a freer lane before it is forced to brake (Gipps 1986)."""
         d_eff = self._anticipated_safe_travel_dist_in_lane(lane)
-        return min(self.v + VehicleParameters.A_MAX, self.v_max, d_eff)
+        v = min(self.v + VehicleParameters.A_MAX, self.v_max, d_eff)
+        leader, gap = self._get_leader(lane)
+        lookahead = (
+            VehicleParameters.G_SAFETY + self.v * self.model.scenario.lc_lookahead
+        )
+        if leader is not self and gap < lookahead:
+            v = min(v, self.get_leading_anticipated_v(leader))
+        return v
 
     # ------------------------------------ #
 
@@ -308,10 +332,6 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         return gap >= VehicleParameters.G_SAFETY + self.v
 
     def _rear_gap_safe(self, target_lane: float) -> bool:
-        # TODO [DMS]: replace shared accepted-gap criterion w/fleet-dependent minimum merging gap:
-        # alpha(ego_type, prospective_follower_type)
-        #
-        # keep collision prevention chekcs separate form behavioural gap acceptance criterion
         """check if rear gap is safe for lane change (avoid collision w/follower)"""
         follower, gap = self._get_follower(target_lane)
         if follower is None:
