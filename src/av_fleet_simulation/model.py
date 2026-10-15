@@ -5,7 +5,6 @@ from typing import override
 import mesa
 from mesa.experimental.continuous_space import ContinuousSpace
 
-# from src.av_fleet_simulation.agent import VehicleAgent, VehicleParameters
 from .agent import VehicleAgent, VehicleParameters
 from .scenario import FleetParameters, TrafficScenario
 
@@ -122,7 +121,9 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
                 args=[
                     self.space,
                     VehicleParameters(
-                        params.alpha, params.name, self._get_available_position()
+                        params.name,
+                        self._get_available_position(),
+                        params.av_merge_t,
                     ),
                 ],
                 n=1,
@@ -195,16 +196,22 @@ class MultiFleetTrafficModel(mesa.Model[VehicleAgent, TrafficScenario]):
 
     @override
     def step(self) -> None:
-        """Advance the model by one step"""
+        """
+        Advance the model by one step. Synchronous update: each phase runs for
+        every vehicle before the next phase starts.
+        """
+        # lane change phase
         self._update_leaders()
-        # LC phasee
         self.agents.do("plan_lane_change")
         self._resolve_lc_conflicts()
         self.agents.do("apply_lane_change")
-        # longitudinal movement phase
+        # longitudinal movement phase (Tian et al. 2015, NHM)
         self._update_leaders()
         self.agents.do("update_a_state")
-        self.agents.do("move")
+        self.agents.do("deterministic_velocity")
+        self.agents.do("random_slowdown")
+        self.agents.do("update_stopped_time")
+        self.agents.do("position_change")
         self.datacollector.collect(self)
 
     def _update_leaders(self) -> None:

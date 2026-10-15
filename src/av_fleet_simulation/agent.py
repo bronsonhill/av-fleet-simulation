@@ -14,8 +14,6 @@ class AState(Enum):
 
 
 class VehicleParameters:
-    # TODO [DMS] -> alpha is provisionally interpreted as minimum accepted merging gap in cells, confirm if still the case
-    # TODO [DMS] -> dd independent DMS config for AV1 & AV2
     # TODO [MOBIL] -> LC_POLITENESS and LC_SAFE_BRAKE not yet incorporated into LC decision rules
     """
     Parameters a vehicle requires for initialisation.
@@ -26,14 +24,14 @@ class VehicleParameters:
     CELL_M = 1  # m per cell
     STEP_S = 1.0  # s per step
 
-    # Tian et al. (2015), Table 4, in cells and steps.
-    LENGTH = 5  # cells -> (previously 7)
+    # Adapted from Tian et al. (2015), Table 4, in cells and steps.
+    LENGTH = 5  # cells
     A_MAX = 1  # cells/s^2
-    V_MAX = 27  # cells/s -> (previously 33)
-    V_MAX_SD = 2  # cells/s, spread of individual maximum speeds
+    V_MAX = 27  # cells/s
+    V_MAX_SD = 2  # cells/s, spread of HDV maximum speeds (AVs use V_MAX exactly)
     G_SAFETY = 4  # cells; must be >= B_DEFENSE or cars can collide
     B_DEFENSE = 2  # cells/s^2, extra slowdown when defensive
-    T = 1.8  # s, desired time gap -> (previously 1.6)
+    T = 1.8  # s, desired time gap
     T_STOPPED = 8  # s stopped before slow-to-start applies
     # Probability of slowing down after the speed-up and brake. P_DEFENSIVE = 1, so
     # in a defensive state the defensive slowdown deterministically applies;
@@ -43,11 +41,18 @@ class VehicleParameters:
     P_STOPPED = 0.65  # pb + pc
 
     # LC params
-    # LC_SAFE_BRAKE = 2.0 #cells/s^2 aacceptable braking for target follower
+    # LC_SAFE_BRAKE = 2.0 #cells/s^2 acceptable braking for target follower
     # LC_POLITENESS = 0.5 #MOBIL weighting of follower disadvantage (Kesting et al. 2007)
 
-    def __init__(self, alpha: float, fleet_name: str, initial_position):
-        self.alpha = alpha
+    def __init__(
+        self,
+        fleet_name: str,
+        initial_position,
+        av_merge_t: float | None = None,
+    ):
+        # time gap (s) used for the rear merge gap when the follower is an AV;
+        # equal to T for HDVs and for AV fleets without DMS
+        self.av_merge_t = VehicleParameters.T if av_merge_t is None else av_merge_t
         self.fleet_name = fleet_name
         self.initial_position = initial_position
         # self.target_lane = None
@@ -66,13 +71,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         self.length = VehicleParameters.LENGTH
         self.a_state: AState = AState.UNINITIALISED
 
-        # Individual maximum speed, sampled at vehicle initialisation
-        self.v_max: int = max(
-            1,
-            round(
-                self.random.gauss(VehicleParameters.V_MAX, VehicleParameters.V_MAX_SD)
-            ),
-        )
+        self.v_max: int = self._initial_v_max()
 
         # velocity
         self.v: float = 0
@@ -87,29 +86,33 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         self.lc_cooldown = 0
         self.lane_change_count = 0
 
-    # ---------- vehicle movement ---------- #
-    def move(self) -> None:
-        """Updates vehicle speed and position (Tian et al. 2015, NHM)."""
+    def _initial_v_max(self) -> int:
+        """
+        Maximum speed: fixed at V_MAX for AVs (set by software), sampled per
+        vehicle at initialisation for HDVs (driver preference).
+        """
+        if self.is_av():
+            return VehicleParameters.V_MAX
+        return max(
+            1,
+            round(
+                self.random.gauss(VehicleParameters.V_MAX, VehicleParameters.V_MAX_SD)
+            ),
+        )
 
-        self._deterministic_velocity()
-
-        self._random_slowdown()
-
-        # update time stationary
-        self.t_st = self.t_st + 1 if self.v == 0 else 0
-
-        self._position_change()
-
-    def _deterministic_velocity(self):
+    # ---------- vehicle movement (Tian et al. 2015, NHM) ---------- #
+    def deterministic_velocity(self):
         self.v = min(self.v + VehicleParameters.A_MAX, self.v_max, self.d_eff)
 
-    def _random_slowdown(self):
+    def random_slowdown(self):
         p, v_slowdown = self._slowdown_probability_and_magnitude()
         if self.random.random() < p:
             self.v = max(self.v - v_slowdown, 0)
-        return 0
 
-    def _position_change(self):
+    def update_stopped_time(self):
+        self.t_st = self.t_st + 1 if self.v == 0 else 0
+
+    def position_change(self):
         self.position[0] += self.v
 
         if self.space.torus:
@@ -269,13 +272,20 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         end = self.position[0]
         return start, end
 
+    def is_av(self) -> bool:
+        return self.params.fleet_name != "HDV"
+
     def _required_rear_merge_gap(self, follower):
-        """min. acceptable rear gap for LC
-        TODO[dms] when enabled adjust behavioural gap according to follower flet"""
+        """min. acceptable rear gap for LC.
+        DMS: when the prospective follower is an AV, the ego uses its fleet's
+        av_merge_t in place of T, on the assumption that an AV follower reacts
+        faster than an HDV. The standstill buffer G_SAFETY always applies, and
+        G_SAFETY >= B_DEFENSE keeps the merge collision free."""
         closing_speed = max(follower.v - self.v, 0)
-        safety_gap = VehicleParameters.G_SAFETY + closing_speed * VehicleParameters.T
-        behavioural_gap = self.params.alpha
-        return max(safety_gap, behavioural_gap)
+        headway = VehicleParameters.T
+        if follower.is_av() and follower.params.fleet_name != self.params.fleet_name:
+            headway = self.params.av_merge_t
+        return VehicleParameters.G_SAFETY + closing_speed * headway
 
     # ------------------------------------------------- #
 
@@ -302,9 +312,20 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         return gap + max(v_anti - VehicleParameters.G_SAFETY, 0)
 
     def _predicted_velocity_in_lane(self, lane: float) -> float:
-        """predict deterministic next-step velocity in prospective lane"""
+        """predict deterministic next-step velocity in prospective lane.
+        A leader within the look-ahead distance (lc_lookahead seconds of travel
+        plus G_SAFETY) caps the speed the vehicle can sustain in that lane at the
+        leader's anticipated speed, so a vehicle behind a slower leader sees a
+        gain in a freer lane before it is forced to brake (Gipps 1986)."""
         d_eff = self._anticipated_safe_travel_dist_in_lane(lane)
-        return min(self.v + VehicleParameters.A_MAX, self.v_max, d_eff)
+        v = min(self.v + VehicleParameters.A_MAX, self.v_max, d_eff)
+        leader, gap = self._get_leader(lane)
+        lookahead = (
+            VehicleParameters.G_SAFETY + self.v * self.model.scenario.lc_lookahead
+        )
+        if leader is not self and gap < lookahead:
+            v = min(v, self.get_leading_anticipated_v(leader))
+        return v
 
     # ------------------------------------ #
 
@@ -318,10 +339,6 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         return gap >= VehicleParameters.G_SAFETY + self.v
 
     def _rear_gap_safe(self, target_lane: float) -> bool:
-        # TODO [DMS]: replace shared accepted-gap criterion w/fleet-dependent minimum merging gap:
-        # alpha(ego_type, prospective_follower_type)
-        #
-        # keep collision prevention chekcs separate form behavioural gap acceptance criterion
         """check if rear gap is safe for lane change (avoid collision w/follower)"""
         follower, gap = self._get_follower(target_lane)
         if follower is None:

@@ -186,7 +186,7 @@ def plot(rows: list[dict], out: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seeds", type=int, default=10)
+    parser.add_argument("--seeds", type=int, default=30)
     parser.add_argument("--warmup", type=int, default=500)
     parser.add_argument("--measure", type=int, default=1000)
     parser.add_argument("--out", default="results/calibration_sweep.csv")

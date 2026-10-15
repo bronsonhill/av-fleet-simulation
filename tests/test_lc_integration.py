@@ -222,21 +222,21 @@ def test_12_lane_change_cooldown(traffic_model, monkeypatch):
     assert ego.target_lane == 1
 
 
-def test_13_alpha_affects_rear_gap_acceptance(traffic_model):
+def test_13_av_merge_t_affects_rear_gap_acceptance(traffic_model):
     model, agents = traffic_model
     ego, other, follower, remaining = agents
     ego.position = (100, 1)
     ego.v = 5
     other.position = (300, 1)
-    follower.position = (92, 2)
-    follower.v = 5
-    remaining.position = (700, 2)  # rear gap is 3 cells
-    ego.params.alpha = 2
+    follower.position = (87, 2)  # rear gap is 8 cells
+    follower.v = 8  # closing speed 3
+    remaining.position = (700, 2)
+    follower.params.fleet_name = "AV1"
+    ego.params.av_merge_t = VehicleParameters.T  # 4 + 3 * 1.8 = 9.4 > 8
     assert not ego._rear_gap_safe(2)
-    follower.position = (87, 2)  # follower moved back (8 cells RG range)
-    ego.params.alpha = 6
+    ego.params.av_merge_t = 1.0  # 4 + 3 * 1.0 = 7 <= 8
     assert ego._rear_gap_safe(2)
-    ego.params.alpha = 10
+    follower.params.fleet_name = "HDV"  # av_merge_t only applies behind an AV
     assert not ego._rear_gap_safe(2)
 
 
