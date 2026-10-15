@@ -276,7 +276,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         G_SAFETY >= B_DEFENSE keeps the merge collision free."""
         closing_speed = max(follower.v - self.v, 0)
         headway = VehicleParameters.T
-        if follower.is_av():
+        if follower.is_av() and follower.params.fleet_name != self.params.fleet_name:
             headway = self.params.av_merge_t
         return VehicleParameters.G_SAFETY + closing_speed * headway
 
