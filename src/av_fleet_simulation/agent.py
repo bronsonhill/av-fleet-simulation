@@ -28,7 +28,7 @@ class VehicleParameters:
     LENGTH = 5  # cells
     A_MAX = 1  # cells/s^2
     V_MAX = 27  # cells/s
-    V_MAX_SD = 2  # cells/s, spread of HDV maximum speeds (AVs use V_MAX exactly)
+    V_MAX_SD = 2  # cells/s, spread of individual maximum speeds
     G_SAFETY = 4  # cells; must be >= B_DEFENSE or cars can collide
     B_DEFENSE = 2  # cells/s^2, extra slowdown when defensive
     T = 1.8  # s, desired time gap
@@ -71,7 +71,13 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         self.length = VehicleParameters.LENGTH
         self.a_state: AState = AState.UNINITIALISED
 
-        self.v_max: int = self._initial_v_max()
+        # Individual maximum speed, sampled at vehicle initialisation
+        self.v_max: int = max(
+            1,
+            round(
+                self.random.gauss(VehicleParameters.V_MAX, VehicleParameters.V_MAX_SD)
+            ),
+        )
 
         # velocity
         self.v: float = 0
@@ -85,20 +91,6 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         self.target_lane: int | None = None
         self.lc_cooldown = 0
         self.lane_change_count = 0
-
-    def _initial_v_max(self) -> int:
-        """
-        Maximum speed: fixed at V_MAX for AVs (set by software), sampled per
-        vehicle at initialisation for HDVs (driver preference).
-        """
-        if self.is_av():
-            return VehicleParameters.V_MAX
-        return max(
-            1,
-            round(
-                self.random.gauss(VehicleParameters.V_MAX, VehicleParameters.V_MAX_SD)
-            ),
-        )
 
     # ---------- vehicle movement (Tian et al. 2015, NHM) ---------- #
     def deterministic_velocity(self):
