@@ -20,14 +20,13 @@ class TrafficScenario(Scenario):
     av_share: float = 0.5  # (AV1 + AV2) / all vehicles
     av1_share: float = 0.5  # AV1 / (AV1 + AV2)
     # Dynamic merge sensing: the time gap (s) each AV fleet requires behind it
-    # when merging in front of an AV. VehicleParameters.T (1.8 s) is no DMS, the
-    # same gap it needs in front of an HDV; 0 leaves only G_SAFETY.
+    # when merging in front of an AV. VehicleParameters.T (1.8 s) is no DMS
     av1_merge_t: float = VehicleParameters.T
     av2_merge_t: float = VehicleParameters.T
     lc_min_gain: float = (
         1.0  # cells/s -> minimin pred. speed gain based on Gipps (1986)
     )
-    lc_cooldown: int = 3  # steps befgore next lane change
+    lc_cooldown: int = 3  # min. steps befgore next lane change
     # s of travel ahead in which a slower leader caps a lane's sustainable speed;
     # calibrated to Knoop et al. (2012), 0.4-0.5 LC/veh-km in free flow
     lc_lookahead: float = 5.0
