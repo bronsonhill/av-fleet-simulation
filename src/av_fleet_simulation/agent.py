@@ -14,7 +14,6 @@ class AState(Enum):
 
 
 class VehicleParameters:
-    # TODO [DMS] -> dd independent DMS config for AV1 & AV2
     # TODO [MOBIL] -> LC_POLITENESS and LC_SAFE_BRAKE not yet incorporated into LC decision rules
     """
     Parameters a vehicle requires for initialisation.
@@ -25,14 +24,14 @@ class VehicleParameters:
     CELL_M = 1  # m per cell
     STEP_S = 1.0  # s per step
 
-    # Tian et al. (2015), Table 4, in cells and steps.
-    LENGTH = 5  # cells -> (previously 7)
+    # Adapted from Tian et al. (2015), Table 4, in cells and steps.
+    LENGTH = 5  # cells
     A_MAX = 1  # cells/s^2
-    V_MAX = 27  # cells/s -> (previously 33)
-    V_MAX_SD = 2  # cells/s, spread of individual maximum speeds
+    V_MAX = 27  # cells/s
+    V_MAX_SD = 2  # cells/s, spread of HDV maximum speeds (AVs use V_MAX exactly)
     G_SAFETY = 4  # cells; must be >= B_DEFENSE or cars can collide
     B_DEFENSE = 2  # cells/s^2, extra slowdown when defensive
-    T = 1.8  # s, desired time gap -> (previously 1.6)
+    T = 1.8  # s, desired time gap
     T_STOPPED = 8  # s stopped before slow-to-start applies
     # Probability of slowing down after the speed-up and brake. P_DEFENSIVE = 1, so
     # in a defensive state the defensive slowdown deterministically applies;
@@ -42,7 +41,7 @@ class VehicleParameters:
     P_STOPPED = 0.65  # pb + pc
 
     # LC params
-    # LC_SAFE_BRAKE = 2.0 #cells/s^2 aacceptable braking for target follower
+    # LC_SAFE_BRAKE = 2.0 #cells/s^2 acceptable braking for target follower
     # LC_POLITENESS = 0.5 #MOBIL weighting of follower disadvantage (Kesting et al. 2007)
 
     def __init__(
@@ -72,13 +71,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         self.length = VehicleParameters.LENGTH
         self.a_state: AState = AState.UNINITIALISED
 
-        # Individual maximum speed, sampled at vehicle initialisation
-        self.v_max: int = max(
-            1,
-            round(
-                self.random.gauss(VehicleParameters.V_MAX, VehicleParameters.V_MAX_SD)
-            ),
-        )
+        self.v_max: int = self._initial_v_max()
 
         # velocity
         self.v: float = 0
@@ -92,6 +85,20 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         self.target_lane: int | None = None
         self.lc_cooldown = 0
         self.lane_change_count = 0
+
+    def _initial_v_max(self) -> int:
+        """
+        Maximum speed: fixed at V_MAX for AVs (set by software), sampled per
+        vehicle at initialisation for HDVs (driver preference).
+        """
+        if self.is_av():
+            return VehicleParameters.V_MAX
+        return max(
+            1,
+            round(
+                self.random.gauss(VehicleParameters.V_MAX, VehicleParameters.V_MAX_SD)
+            ),
+        )
 
     # ---------- vehicle movement (Tian et al. 2015, NHM) ---------- #
     def deterministic_velocity(self):
