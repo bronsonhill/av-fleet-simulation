@@ -24,29 +24,29 @@ from src.av_fleet_simulation.scenario import calibration_hdvs
 
 DENSITIES = range(10, 80 + 1)  # veh/km/lane
 
-# HCM 6th ed. (TRB 2016), Ch. 12, basic freeway segments
+# HCM 6th ed. (TRB 2016), Ch. 12, multilane highway segments
 HCM_DENSITY_AT_CAPACITY = 28  # pc/km/ln (45 pc/mi/ln)
 KM_PER_MI = 1.609344
 
 
 def hcm_capacity(ffs_km_h: float) -> float:
-    """HCM freeway capacity in pc/h/ln for a free-flow speed in km/h."""
+    """HCM multilane highway capacity in pc/h/ln for a free-flow speed in km/h."""
     ffs = ffs_km_h / KM_PER_MI  # mi/h
-    return min(2200 + 10 * (ffs - 50), 2400)
+    return min(1900 + 20 * (ffs - 45), 2300)
 
 
 def hcm_breakpoint(ffs_km_h: float) -> float:
-    """HCM freeway break-point flow in pc/h/ln (CAF = 1): below it, speed stays
-    at FFS; above it, speed falls towards the speed at capacity."""
-    ffs = ffs_km_h / KM_PER_MI  # mi/h
-    return 1000 + 40 * (75 - ffs)
+    """HCM multilane highway break-point flow in pc/h/ln, fixed for any FFS:
+    below it, speed stays at FFS; above it, speed falls towards the speed at
+    capacity."""
+    return 1400
 
 
 def hcm_speed_flow(ffs_km_h: float) -> tuple[list[float], list[float]]:
     """
-    HCM 6th ed. unified speed-flow curve for a basic freeway segment, from zero
-    flow up to capacity, at base conditions (CAF = SAF = 1). Returns flows in
-    veh/h/ln and speeds in km/h. The HCM states it for 55 <= FFS <= 75 mi/h.
+    HCM 6th ed. unified speed-flow curve for a multilane highway segment, from
+    zero flow up to capacity, at base conditions (CAF = SAF = 1). Returns flows
+    in veh/h/ln and speeds in km/h. The HCM states it for 45 <= FFS <= 70 mi/h.
     """
     ffs = ffs_km_h / KM_PER_MI  # mi/h
     capacity = hcm_capacity(ffs_km_h)  # pc/h/ln
@@ -58,7 +58,8 @@ def hcm_speed_flow(ffs_km_h: float) -> tuple[list[float], list[float]]:
         ffs
         if q <= breakpoint
         else ffs
-        - (ffs - speed_at_capacity) * ((q - breakpoint) / (capacity - breakpoint)) ** 2
+        - (ffs - speed_at_capacity)
+        * ((q - breakpoint) / (capacity - breakpoint)) ** 1.31
         for q in flows
     ]
     return flows, [v * KM_PER_MI for v in speeds]
@@ -186,7 +187,7 @@ def plot(rows: list[dict], out: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seeds", type=int, default=30)
+    parser.add_argument("--seeds", type=int, default=100)
     parser.add_argument("--warmup", type=int, default=500)
     parser.add_argument("--measure", type=int, default=1000)
     parser.add_argument("--out", default="results/calibration_sweep.csv")

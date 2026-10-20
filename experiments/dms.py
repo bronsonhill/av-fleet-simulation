@@ -21,7 +21,7 @@ Dynamic merge sensing (DMS) grid sweep experiment.
 
 Run from the repo root:
     uv run python -m experiments.dms
-    uv run python -m experiments.dms --densities 26 28 30
+    uv run python -m experiments.dms --densities 23 24 25
 Writes results/dms_sweep.csv with one row per (density, av1_merge_t, av2_merge_t,
 seed), and one heatmap figure per density.
 """
@@ -217,7 +217,7 @@ def plot(rows: list[dict], density: float, out: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--densities", type=float, nargs="+", default=[DENSITY])
-    parser.add_argument("--seeds", type=int, default=30)
+    parser.add_argument("--seeds", type=int, default=500)
     parser.add_argument("--warmup", type=int, default=500)
     parser.add_argument("--measure", type=int, default=1000)
     parser.add_argument("--out", default="results/dms_sweep.csv")
