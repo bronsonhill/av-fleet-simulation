@@ -87,6 +87,8 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         self.d_l: float = float("inf")
         # time steps spent stopped
         self.t_st: int = 0
+        # (probability, magnitude) of this step's random slowdown
+        self.slowdown: tuple[float, float] = (0.0, 0.0)
         # LC state
         self.target_lane: int | None = None
         self.lc_cooldown = 0
@@ -97,7 +99,7 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
         self.v = min(self.v + VehicleParameters.A_MAX, self.v_max, self.d_eff)
 
     def random_slowdown(self):
-        p, v_slowdown = self._slowdown_probability_and_magnitude()
+        p, v_slowdown = self.slowdown
         if self.random.random() < p:
             self.v = max(self.v - v_slowdown, 0)
 
@@ -135,6 +137,9 @@ class VehicleAgent(mesa.experimental.continuous_space.ContinuousSpaceAgent):
             self.a_state = AState.DEFENSE
         else:
             self.a_state = AState.NORMAL
+        # chosen from v before acceleration, so a stopped car is still at v = 0
+        # here and slow-to-start can hold it back (Tian et al. 2015)
+        self.slowdown = self._slowdown_probability_and_magnitude()
 
     def anticipate_safe_travel_dist(self) -> float:
         """
